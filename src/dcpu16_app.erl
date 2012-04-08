@@ -1,4 +1,4 @@
--module(myapp_app).
+-module(dcpu16_app).
 -behaviour(application).
 
 -export([
@@ -7,7 +7,7 @@
 	 ]).
 
 start(_Type, _StartArgs) ->
-    case myapp_sup:start_link() of
+    case dcpu16_sup:start_link() of
 	{ok, Pid} ->
 	    {ok, Pid};
 	Other ->

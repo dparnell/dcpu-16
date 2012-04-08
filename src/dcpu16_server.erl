@@ -1,12 +1,12 @@
 %%%-------------------------------------------------------------------
-%%% @author  <Zach@ZACH-PC>
-%%% @copyright (C) 2011, 
+%%% @author  <Daniel Parnell>
+%%% @copyright (C) 2012, 
 %%% @doc
-%%%     Sample application server
+%%%     DCPU16 application server
 %%% @end
-%%% Created : 23 Mar 2011 by  <Zach@ZACH-PC>
+%%% Created : 8 Apr 2012 by  <Daniel Parnell>
 %%%-------------------------------------------------------------------
--module(myapp_server).
+-module(dcpu16_server).
 
 -behaviour(gen_server).
 

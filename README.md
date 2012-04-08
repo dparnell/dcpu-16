@@ -1,7 +1,7 @@
 What is this?
 =============
 
-This is a simple template for an OTP application.  It is based on one found [here](https://github.com/zpeters/ErlangOtpTemplate) and some information on [StackOverflow](http://stackoverflow.com/questions/1582818/what-tool-do-you-use-to-build-an-erlang-program).
+This is a go at implementing the DCPU-16 processor in the upcoming game [0x10<sup>c</sup>](http://0x10c.com/).
 
 Compiling
 ---------
@@ -12,8 +12,8 @@ Running
 -------
 
     erl -pa ebin
-    application:start(myapp).
-    myapp_server:test_call("Call").
-    myapp_server:test_cast("Cast").
+    application:start(dcpu16).
+    dcpu16_server:test_call("Call").
+    dcpu16_server:test_cast("Cast").
 
 

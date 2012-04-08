@@ -1,4 +1,4 @@
--module(myapp_sup).
+-module(dcpu16_sup).
 -behaviour(supervisor).
 
 %% API
@@ -13,8 +13,8 @@ start_link() ->
     supervisor:start_link({local, ?SERVER}, ?MODULE, []).
 
 init([]) ->
-    Server = {myapp_server, {myapp_server, start_link, []},
-	      permanent, 2000, worker, [myapp_server]},
+    Server = {dcpu16_server, {dcpu16_server, start_link, []},
+	      permanent, 2000, worker, [dcpu16_server]},
     Children = [Server],
     RestartStrategy = {one_for_one, 3, 1},
     {ok, {RestartStrategy, Children}}.
