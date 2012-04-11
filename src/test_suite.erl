@@ -1,10 +1,10 @@
 -module(test_suite).
 
--author("michael@mullistechnologies.com").
+-author("me@danielparnell.com").
 
 -include_lib("eunit/include/eunit.hrl").
 
 all_test_() ->
   [
-%%   {module, action_animate_test}
+   {module, dcpu16_core_test}
   ].

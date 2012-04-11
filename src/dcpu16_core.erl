@@ -11,14 +11,70 @@
 
 -import(array, [new/2, get/2, set/3]).
 
--export([init/1, cycle/1]).
+-export([init/0, ram/2, ram/3, get_reg/2, set_reg/3, cycle/1, cycle/2, print/1]).
 
 %% everything about the CPU is in the cpu record
 -record(cpu, { a = 0, b = 0, c = 0, x = 0, y = 0, z = 0, i = 0, j = 0, pc = 0, sp = 16#ffff, overflow = 0, skip = 0, w = [] }).
 
 %% Set up a new DCPU-16 instance with everything we need
-init([]) ->
-    { #cpu{}, array:new(16#10000, {default,0}), 0, [] }.
+init() ->
+    { #cpu{}, array:new(16#10000, {default, 0}), 0, [] }.
+
+%% Get the value in a RAM location
+ram(State, Address) ->
+    {_, Ram, _, _} = State,
+    array:get(Address, Ram).
+
+%% Set the value in a RAM location
+ram(State, Address, Value) ->
+    { Cpu, Ram, Cycles, Operation } = State,
+    NewRam = array:set(Address, Value, Ram),
+    { Cpu, NewRam, Cycles, Operation }.
+
+
+get_reg(State, Reg) ->
+    { Cpu, _, _, _ } = State,
+    reg(Cpu, Reg).
+
+set_reg(State, Reg, Value) ->
+    { Cpu, Ram, Cycles, Operation } = State,
+
+    { reg(Cpu, Reg, Value), Ram, Cycles, Operation }.
+
+reg(Cpu, Reg) ->
+
+    case Reg of
+	a -> Cpu#cpu.a;
+	b -> Cpu#cpu.b;
+	c -> Cpu#cpu.c;
+	x -> Cpu#cpu.x;
+	y -> Cpu#cpu.y;
+	z -> Cpu#cpu.z;
+	i -> Cpu#cpu.i;
+	j -> Cpu#cpu.j;
+	pc -> Cpu#cpu.pc;
+	sp -> Cpu#cpu.sp;
+	overflow -> Cpu#cpu.overflow;
+	skip -> Cpu#cpu.skip
+    end.
+
+reg(Cpu, Reg, Value) ->
+
+    case Reg of
+	a -> Cpu#cpu{a = Value};
+	b -> Cpu#cpu{b = Value};
+	c -> Cpu#cpu{c = Value};
+	x -> Cpu#cpu{x = Value};
+	y -> Cpu#cpu{y = Value};
+	z -> Cpu#cpu{z = Value};
+	i -> Cpu#cpu{i = Value};
+	j -> Cpu#cpu{j = Value};
+	pc -> Cpu#cpu{pc = Value};
+	sp -> Cpu#cpu{sp = Value};
+	overflow -> Cpu#cpu{overflow = Value};
+	skip -> Cpu#cpu{skip = Value}
+    end.
+
 
 %% produce the micro operations for a read into the working stack
 decode_read(Source) ->
@@ -117,9 +173,12 @@ calculate_pc_usage(Source) ->
     end.
 
 %% When there are no micro operations to perform we need to fetch a new instruction and decode it into micro-operations
-cycle({Cpu, Ram, Cycles, []}) ->
-    Instruction = array:get(Ram, Cpu#cpu.pc),
-    <<Opcode:4, A:6, B:6>> = Instruction,
+cycle(Cpu, Ram, Cycles, []) ->
+%    io:fwrite("Cpu = ~p~nRam = ~p~n", [Cpu, Ram]),
+
+    Instruction = array:get(Cpu#cpu.pc, Ram),
+    <<B:6, A:6, Opcode:4>> = <<Instruction:16>>,
+%    io:fwrite("Opcode = ~p A = ~p B = ~p~n", [Opcode, A, B]),
 
     case Cpu#cpu.skip of
 	0 ->
@@ -143,22 +202,66 @@ cycle({Cpu, Ram, Cycles, []}) ->
 			    _ -> error
 			end,
 
-	    cycle({Cpu#cpu{pc = Cpu#cpu.pc + 1}, Ram, Cycles + 1, Micro_ops});
+	    cycle(Cpu#cpu{pc = Cpu#cpu.pc + 1}, Ram, Cycles, Micro_ops);
 	1 -> %% we want to skip the instruction
 	    case Opcode of
 		0 -> {Cpu#cpu{pc = Cpu#cpu.pc + 1 + calculate_pc_usage(B), skip = 0}, Ram, Cycles + 1, []};
 		_ -> {Cpu#cpu{pc = Cpu#cpu.pc + 1 + calculate_pc_usage(A) + calculate_pc_usage(B), skip = 0}, Ram, Cycles + 1, []}
 	    end
-    end;
-
+    end;		    
+	 
 %% We have micro operations so we need to perform them
-cycle({Cpu, Ram, Cycles, [Micro_op|Micro_ops]}) ->
-    Status = case Micro_op of
-	nop -> ok;
-	_ -> error
-    end,
+cycle(Cpu, Ram, Cycles, [Micro_op|Micro_ops]) ->
+%    io:fwrite("~p ~p ~p ~p ~p~n", [Cpu, Ram, Cycles, Micro_op, Micro_ops]),
+    io:fwrite("~p~n", [Micro_op]),
 
-    case Status of
-	ok -> {Cpu, Ram, Cycles + 1, Micro_ops};
-	_ -> error
+    {NewCpu, NewRam, Cost } = case Micro_op of
+			   nop -> { Cpu, Ram, 1 };
+			   { read_reg, Reg } -> { Cpu#cpu{w = lists:append([reg(Cpu, Reg)], Cpu#cpu.w)}, Ram, 0};
+			   { write_reg, Reg } -> [Value|T] = Cpu#cpu.w,
+						 Temp = reg(Cpu, Reg, Value),
+						 { Temp#cpu{w = T}, Ram, 0 };
+			   read_next_literal -> Literal = array:get(Cpu#cpu.pc, Ram),
+						{ Cpu#cpu{ pc = Cpu#cpu.pc + 1, w = lists:append([Literal], Cpu#cpu.w)}, Ram, 1 }
+						
+		       end,
+
+    case Cost of
+	0 when length(Micro_ops) > 0 -> cycle(NewCpu, NewRam, Cycles, Micro_ops);
+	1 when length(Micro_ops) > 0 ->
+	    [Next_Op|_] = Micro_ops,
+	    NextCost = micro_op_cost(Next_Op),
+
+	    if 
+		NextCost == 0 -> cycle(NewCpu, NewRam, Cycles, Micro_ops);
+		true -> {NewCpu, NewRam, Cycles + Cost, Micro_ops}
+	    end;
+	_ -> {NewCpu, NewRam, Cycles + Cost, Micro_ops}
     end.
+
+micro_op_cost(Operation) ->
+    io:fwrite("Operation = ~p~n", [Operation]),
+    case Operation of
+	nop -> 1;
+	{ read_reg, _ } -> 0;
+	{ write_reg, _ } -> 0;
+	read_next_literal -> 1
+    end.
+
+cycle(State) ->
+%    io:fwrite("State = ~p~n", [State]),
+
+    { Cpu, Ram, Cycles, Operations } = State,
+    cycle(Cpu, Ram, Cycles, Operations).
+
+cycle(A, Count) ->
+%    io:fwrite("~B ~p~n", [Count, A]),
+    if
+	Count > 0 -> cycle(cycle(A), Count - 1);
+	true -> A
+    end.
+			   
+print(State) ->
+    {Cpu, _, Cycles, _} = State,
+
+    io:fwrite("~B ~p~n", [Cycles, Cpu]).
