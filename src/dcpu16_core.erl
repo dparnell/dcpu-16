@@ -190,7 +190,7 @@ cycle(Cpu, Ram, Cycles, []) ->
 	    Micro_ops = case Opcode of
 			     0 -> decode_nonbasic_opcode(A, B);
 			     1 -> [decode_read(B), nop, decode_write(A)];
-			     2 -> [decode_read(B), decode_read(A), add, decode_write(A)];
+			     2 -> [decode_read(B), decode_read(A), nop, add, decode_write(A)];
 			     3 -> [decode_read(B), decode_read(A), nop, sub, decode_write(A)];
 			     4 -> [decode_read(B), decode_read(A), nop, mul, decode_write(A)];
 			     5 -> [decode_read(B), decode_read(A), nop, nop, divide, decode_write(A)];

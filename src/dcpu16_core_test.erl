@@ -27,7 +27,7 @@ simple_code2() ->
 					16#0402  %% ADD A, B
 				       ]),
     
-    ResultCPU = dcpu16_core:cycle(ReadyCPU, 5),
+    ResultCPU = dcpu16_core:cycle(ReadyCPU, 6),
     
     dcpu16_core:get_reg(ResultCPU, a).
 	
