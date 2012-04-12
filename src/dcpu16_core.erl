@@ -26,11 +26,16 @@ ram(State, Address) ->
     array:get(Address, Ram).
 
 %% Set the value in a RAM location
-ram(State, Address, Value) ->
+ram(State, Address, [H|T]) ->
     { Cpu, Ram, Cycles, Operation } = State,
-    NewRam = array:set(Address, Value, Ram),
-    { Cpu, NewRam, Cycles, Operation }.
+    NewRam = array:set(Address, H, Ram),
+    ram({Cpu, NewRam, Cycles, Operation}, Address + 1, T);
 
+ram(State, _, []) ->
+    State;
+
+ram(State, Address, Value) ->
+    ram(State, Address, [Value]).
 
 get_reg(State, Reg) ->
     { Cpu, _, _, _ } = State,
@@ -185,7 +190,7 @@ cycle(Cpu, Ram, Cycles, []) ->
 	    Micro_ops = case Opcode of
 			     0 -> decode_nonbasic_opcode(A, B);
 			     1 -> [decode_read(B), nop, decode_write(A)];
-			     2 -> [decode_read(B), decode_read(A), nop, add, decode_write(A)];
+			     2 -> [decode_read(B), decode_read(A), add, decode_write(A)];
 			     3 -> [decode_read(B), decode_read(A), nop, sub, decode_write(A)];
 			     4 -> [decode_read(B), decode_read(A), nop, mul, decode_write(A)];
 			     5 -> [decode_read(B), decode_read(A), nop, nop, divide, decode_write(A)];
@@ -213,7 +218,7 @@ cycle(Cpu, Ram, Cycles, []) ->
 %% We have micro operations so we need to perform them
 cycle(Cpu, Ram, Cycles, [Micro_op|Micro_ops]) ->
 %    io:fwrite("~p ~p ~p ~p ~p~n", [Cpu, Ram, Cycles, Micro_op, Micro_ops]),
-    io:fwrite("~p~n", [Micro_op]),
+%    io:fwrite("~p~n", [Micro_op]),
 
     {NewCpu, NewRam, Cost } = case Micro_op of
 			   nop -> { Cpu, Ram, 1 };
@@ -222,7 +227,11 @@ cycle(Cpu, Ram, Cycles, [Micro_op|Micro_ops]) ->
 						 Temp = reg(Cpu, Reg, Value),
 						 { Temp#cpu{w = T}, Ram, 0 };
 			   read_next_literal -> Literal = array:get(Cpu#cpu.pc, Ram),
-						{ Cpu#cpu{ pc = Cpu#cpu.pc + 1, w = lists:append([Literal], Cpu#cpu.w)}, Ram, 1 }
+						{ Cpu#cpu{ pc = Cpu#cpu.pc + 1, w = lists:append([Literal], Cpu#cpu.w)}, Ram, 1 };
+				  add -> [A, B] = Cpu#cpu.w,
+					 Sum = A + B,
+					 Overflow = (Sum band 16#10000) bsr 16,
+					 { Cpu#cpu{ w = [Sum band 16#ffff], overflow = Overflow  }, Ram, 1 } 
 						
 		       end,
 
@@ -240,12 +249,13 @@ cycle(Cpu, Ram, Cycles, [Micro_op|Micro_ops]) ->
     end.
 
 micro_op_cost(Operation) ->
-    io:fwrite("Operation = ~p~n", [Operation]),
+%    io:fwrite("Operation = ~p~n", [Operation]),
     case Operation of
 	nop -> 1;
 	{ read_reg, _ } -> 0;
 	{ write_reg, _ } -> 0;
-	read_next_literal -> 1
+	read_next_literal -> 1;
+	add -> 1
     end.
 
 cycle(State) ->
