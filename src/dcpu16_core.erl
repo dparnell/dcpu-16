@@ -220,20 +220,20 @@ cycle(Cpu, Ram, Cycles, [Micro_op|Micro_ops]) ->
 %    io:fwrite("~p ~p ~p ~p ~p~n", [Cpu, Ram, Cycles, Micro_op, Micro_ops]),
 %    io:fwrite("~p~n", [Micro_op]),
 
-    {NewCpu, NewRam, Cost } = case Micro_op of
-			   nop -> { Cpu, Ram, 1 };
-			   { read_reg, Reg } -> { Cpu#cpu{w = lists:append([reg(Cpu, Reg)], Cpu#cpu.w)}, Ram, 0};
-			   { write_reg, Reg } -> [Value|T] = Cpu#cpu.w,
-						 Temp = reg(Cpu, Reg, Value),
-						 { Temp#cpu{w = T}, Ram, 0 };
-			   read_next_literal -> Literal = array:get(Cpu#cpu.pc, Ram),
-						{ Cpu#cpu{ pc = Cpu#cpu.pc + 1, w = lists:append([Literal], Cpu#cpu.w)}, Ram, 1 };
-				  add -> [A, B] = Cpu#cpu.w,
-					 Sum = A + B,
-					 Overflow = (Sum band 16#10000) bsr 16,
-					 { Cpu#cpu{ w = [Sum band 16#ffff], overflow = Overflow  }, Ram, 1 } 
-						
-		       end,
+    { NewCpu, NewRam, Cost } = case Micro_op of				  
+				   nop -> { Cpu, Ram, 1 };
+				   { read_reg, Reg } -> { Cpu#cpu{w = lists:append([reg(Cpu, Reg)], Cpu#cpu.w)}, Ram, 0};
+				   { write_reg, Reg } -> [Value|T] = Cpu#cpu.w,
+							 Temp = reg(Cpu, Reg, Value),
+							 { Temp#cpu{w = T}, Ram, 0 };
+				   read_next_literal -> Literal = array:get(Cpu#cpu.pc, Ram),
+							{ Cpu#cpu{ pc = Cpu#cpu.pc + 1, w = lists:append([Literal], Cpu#cpu.w)}, Ram, 1 };
+				   add -> [A, B] = Cpu#cpu.w,
+					  Sum = A + B,
+					  Overflow = (Sum band 16#10000) bsr 16,
+					  { Cpu#cpu{ w = [Sum band 16#ffff], overflow = Overflow  }, Ram, 1 } 
+					      
+			       end,
 
     case Cost of
 	0 when length(Micro_ops) > 0 -> cycle(NewCpu, NewRam, Cycles, Micro_ops);
