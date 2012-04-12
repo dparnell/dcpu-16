@@ -220,18 +220,32 @@ cycle(Cpu, Ram, Cycles, [Micro_op|Micro_ops]) ->
 %    io:fwrite("~p ~p ~p ~p ~p~n", [Cpu, Ram, Cycles, Micro_op, Micro_ops]),
 %    io:fwrite("~p~n", [Micro_op]),
 
-    { NewCpu, NewRam, Cost } = case Micro_op of				  
+    { NewCpu, NewRam, Cost } = case Micro_op of
 				   nop -> { Cpu, Ram, 1 };
+
 				   { read_reg, Reg } -> { Cpu#cpu{w = lists:append([reg(Cpu, Reg)], Cpu#cpu.w)}, Ram, 0};
+
 				   { write_reg, Reg } -> [Value|T] = Cpu#cpu.w,
 							 Temp = reg(Cpu, Reg, Value),
 							 { Temp#cpu{w = T}, Ram, 0 };
+
 				   read_next_literal -> Literal = array:get(Cpu#cpu.pc, Ram),
 							{ Cpu#cpu{ pc = Cpu#cpu.pc + 1, w = lists:append([Literal], Cpu#cpu.w)}, Ram, 1 };
+
 				   add -> [A, B] = Cpu#cpu.w,
 					  Sum = A + B,
 					  Overflow = (Sum band 16#10000) bsr 16,
-					  { Cpu#cpu{ w = [Sum band 16#ffff], overflow = Overflow  }, Ram, 1 } 
+					  { Cpu#cpu{ w = [Sum band 16#ffff], overflow = Overflow  }, Ram, 1 } ;
+
+				   sub -> [A, B] = Cpu#cpu.w,
+					  Sub = A - B,
+					  Overflow = (Sub band 16#ffff0000) bsr 16,
+					  { Cpu#cpu{ w = [Sub band 16#ffff], overflow = Overflow  }, Ram, 1 };
+
+				   { write_ind, Reg } -> Address = reg(Cpu, Reg),
+							 [Value|T] = Cpu#cpu.w,
+							 { Cpu, array:set(Address, Value, Ram), 1}
+
 					      
 			       end,
 
@@ -251,11 +265,9 @@ cycle(Cpu, Ram, Cycles, [Micro_op|Micro_ops]) ->
 micro_op_cost(Operation) ->
 %    io:fwrite("Operation = ~p~n", [Operation]),
     case Operation of
-	nop -> 1;
 	{ read_reg, _ } -> 0;
 	{ write_reg, _ } -> 0;
-	read_next_literal -> 1;
-	add -> 1
+	_ -> 1	       
     end.
 
 cycle(State) ->
