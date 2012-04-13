@@ -4,7 +4,7 @@
 -author("me@danielparnell.com").
 -include_lib("eunit/include/eunit.hrl").
 
-simple_code() ->
+simple_set() ->
     CPU = dcpu16_core:init(),
     
     ReadyCPU = dcpu16_core:ram(CPU, 0, [
@@ -16,7 +16,7 @@ simple_code() ->
     
     dcpu16_core:get_reg(ResultCPU, a).
 
-simple_code2() ->
+simple_add() ->
     CPU = dcpu16_core:init(),
     
     ReadyCPU = dcpu16_core:ram(CPU, 0, [
@@ -64,7 +64,23 @@ indirect_register_write() ->
     
     dcpu16_core:ram(ResultCPU, 16#8000).
 
-
+complicated_subtraction() ->
+    CPU = dcpu16_core:init(),
+    
+    ReadyCPU = dcpu16_core:ram(CPU, 0, [
+					16#7c01, %% SET A, 0x30
+					16#0030, 
+					16#7de1, %% SET [0x1000], 0x20
+					16#1000,
+					16#0020,
+					16#7803, %% SUB A, [0x1000]
+					16#1000
+				       ]),
+    
+    ResultCPU = dcpu16_core:cycle(ReadyCPU, 8),
+    
+    dcpu16_core:get_reg(ResultCPU, a).
+    
 
 attempt(F) ->
     try
@@ -77,8 +93,9 @@ attempt(F) ->
 
 basic_test_() ->    
     [
-     ?_assertEqual(16#1234, attempt(fun() -> simple_code() end)),
-     ?_assertEqual(16#beef, attempt(fun() -> simple_code2() end)),
+     ?_assertEqual(16#1234, attempt(fun() -> simple_set() end)),
+     ?_assertEqual(16#beef, attempt(fun() -> simple_add() end)),
      ?_assertMatch({16#c002, 16#ffff}, attempt(fun() -> simple_subtraction() end)),
-     ?_assertEqual(16#1234, attempt(fun() -> indirect_register_write() end))
+     ?_assertEqual(16#1234, attempt(fun() -> indirect_register_write() end)),
+     ?_assertEqual(16#0010, attempt(fun() -> complicated_subtraction() end))
     ].
