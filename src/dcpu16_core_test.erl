@@ -98,7 +98,10 @@ test_subroutines() ->
 
     ResultCPU = dcpu16_core:cycle(ReadyCPU, 100),
     
-    dcpu16_core:get_reg(ResultCPU, pc).
+    {
+      dcpu16_core:get_reg(ResultCPU, a),
+      dcpu16_core:get_reg(ResultCPU, pc)
+    }.
     
 
 attempt(F) ->
@@ -117,5 +120,5 @@ basic_test_() ->
      ?_assertMatch({16#c002, 16#ffff}, attempt(fun() -> simple_subtraction() end)),
      ?_assertEqual(16#1234, attempt(fun() -> indirect_register_write() end)),
      ?_assertEqual(16#0010, attempt(fun() -> complicated_subtraction() end)),
-     ?_assertEqual(16#0005, attempt(fun() -> test_subroutines() end))
+     ?_assertMatch({16#0001, 16#0005}, attempt(fun() -> test_subroutines() end))
     ].
