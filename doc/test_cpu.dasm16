@@ -1,5 +1,6 @@
-; A test piece of code that aims to exercise DCPU-16 implementations
-; Copyright 2012, Daniel Parnell <me@danielparnell.com>
+; Test code that aims to exercise DCPU-16 implementations
+; Daniel Parnell <me@danielparnell.com> - 2012
+; This work is licensed under a Creative Commons Attribution 3.0 Unported License.
 ;
 
 JSR test_set
@@ -7,6 +8,7 @@ JSR test_add
 JSR test_sub
 JSR test_mul
 JSR test_div
+JSR test_mod
 
 ; YAY, ALL TESTS PASSED!
 :success set PC, success
@@ -152,7 +154,6 @@ SUB PC, 1 ; test failed
 ; multiplication tests passed :)
 SET PC, POP
 
-
 :test_div
 SET A, 100
 DIV A, 0
@@ -175,4 +176,20 @@ SUB PC, 1 ; test failed
 IFN O, 0xc000
 SUB PC, 1 ; test failed
 
+; division tests passed :)
+SET PC, POP
+
+:test_mod
+SET A, 10
+SET B, 0
+MOD A, B
+IFN A, 0
+SUB PC, 1 ; test failed
+
+SET A, 10
+MOD A, 7
+IFN A, 3
+SUB PC, 1 ; test failed
+
+; mod tests passed :)
 SET PC, POP

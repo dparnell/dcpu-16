@@ -80,6 +80,25 @@ complicated_subtraction() ->
     ResultCPU = dcpu16_core:cycle(ReadyCPU, 8),
     
     dcpu16_core:get_reg(ResultCPU, a).
+
+test_subroutines() ->
+    CPU = dcpu16_core:init(),
+    
+    ReadyCPU = dcpu16_core:ram(CPU, 0, [
+					16#8001, %% SET A, 0
+					16#7c10, %% JSR FOO
+					16#0006,
+					16#840d, %% IFN A, 1
+					16#85c3, %% SUB PC, 1 ; failed 
+					16#85c3, %% SUB PC, 1 ; success
+					         %% :foo
+					16#8401, %% SET A, 1
+					16#61c1  %% SET PC, POP
+				       ]),
+
+    ResultCPU = dcpu16_core:cycle(ReadyCPU, 100),
+    
+    dcpu16_core:get_reg(ResultCPU, pc).
     
 
 attempt(F) ->
@@ -97,5 +116,6 @@ basic_test_() ->
      ?_assertEqual(16#beef, attempt(fun() -> simple_add() end)),
      ?_assertMatch({16#c002, 16#ffff}, attempt(fun() -> simple_subtraction() end)),
      ?_assertEqual(16#1234, attempt(fun() -> indirect_register_write() end)),
-     ?_assertEqual(16#0010, attempt(fun() -> complicated_subtraction() end))
+     ?_assertEqual(16#0010, attempt(fun() -> complicated_subtraction() end)),
+     ?_assertEqual(16#0005, attempt(fun() -> test_subroutines() end))
     ].

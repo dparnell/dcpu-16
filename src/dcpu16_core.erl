@@ -14,11 +14,14 @@
 -export([init/0, ram/2, ram/3, get_reg/2, set_reg/3, cycle/1, cycle/2, print/1]).
 
 %% everything about the CPU is in the cpu record
--record(cpu, { a = 0, b = 0, c = 0, x = 0, y = 0, z = 0, i = 0, j = 0, pc = 0, sp = 16#ffff, overflow = 0, skip = 0, w = [], target = none }).
+-record(cpu, { a = 0, b = 0, c = 0, x = 0, y = 0, z = 0, i = 0, j = 0, pc = 0, sp = 0, overflow = 0, skip = false, w = [], target = none }).
 
 %% Set up a new DCPU-16 instance with everything we need
 init() ->
     { #cpu{}, array:new(16#10000, {default, 0}), 0, [] }.
+
+debug(Format, Values) ->
+    io:fwrite(Format, Values).
 
 %% Get the value in a RAM location
 ram(State, Address) ->
@@ -111,9 +114,9 @@ decode_read(Source) ->
 	24 -> read_pop;
 	25 -> read_peek;
 	26 -> read_push;
-	27 -> read_sp;
-	28 -> read_pc;
-	29 -> read_o;
+	27 -> { read_reg, sp };
+	28 -> { read_reg, pc };
+	29 -> { read_reg, o };
 	30 -> read_next_ind;
 	31 -> read_next_literal;
 	 _ -> {lit, Source band 31}
@@ -148,9 +151,9 @@ decode_target(Source) ->
 	24 -> target_pop;
 	25 -> target_peek;
 	26 -> target_push;
-	27 -> target_sp;
-	28 -> target_pc;
-	29 -> target_o;
+	27 -> { target_reg, sp };
+	28 -> { target_reg, pc };
+	29 -> { target_reg, o };
 	30 -> target_next_ind;
 	31 -> target_next_lit;
 	 _ -> target_lit
@@ -186,9 +189,9 @@ decode_write(Destination) ->
 	24 -> write_pop;
 	25 -> write_peek;
 	26 -> write_push;
-	27 -> write_sp;
-	28 -> write_pc;
-	29 -> write_o;
+	27 -> { write_reg, sp };
+	28 -> { write_reg, pc };
+	29 -> { write_reg, o };
 	30 -> write_next_ind;
 	_ -> nop
     end.
@@ -216,49 +219,52 @@ calculate_pc_usage(Source) ->
 
 %% When there are no micro operations to perform we need to fetch a new instruction and decode it into micro-operations
 cycle(Cpu, Ram, Cycles, [], CyclesLeft) ->
-%    io:fwrite("Cpu = ~p~nRam = ~p~n", [Cpu, Ram]),
+%    debug("Cpu = ~p~nRam = ~p~n", [Cpu, Ram]),
 
     Instruction = array:get(Cpu#cpu.pc, Ram),
     <<B:6, A:6, Opcode:4>> = <<Instruction:16>>,
-    io:fwrite("~nOpcode = ~p A = ~p B = ~p~n", [Opcode, A, B]),
+    debug("~nOpcode = ~p A = ~p B = ~p~n", [Opcode, A, B]),
 
     case Cpu#cpu.skip of
-	0 ->
-	    Micro_ops = case Opcode of
-			     0 -> decode_nonbasic_opcode(A, B);
-			     1 -> [decode_target(A), decode_read(B), nop, decode_write(A)];
-			     2 -> [decode_target(A), read_target, decode_read(B), nop, add, decode_write(A)];
-			     3 -> [decode_target(A), read_target, decode_read(B), nop, sub, decode_write(A)];
-			     4 -> [decode_target(A), read_target, decode_read(B), nop, mul, decode_write(A)];
-			     5 -> [decode_target(A), read_target, decode_read(B), nop, nop, divide, decode_write(A)];
-			     6 -> [decode_target(A), read_target, decode_read(B), nop, nop, mod, decode_write(A)];
-			     7 -> [decode_target(A), read_target, decode_read(B), nop, shl, decode_write(A)];
-			     8 -> [decode_target(A), read_target, decode_read(B), nop, shr, decode_write(A)];
-			     9 -> [decode_target(A), read_target, decode_read(B), logical_and, decode_write(A)];
-			    10 -> [decode_target(A), read_target, decode_read(B), logical_or, decode_write(A)];
-			    11 -> [decode_target(A), read_target, decode_read(B), logical_xor, decode_write(A)];
-			    12 -> [decode_target(A), read_target, decode_read(B), ife];
-			    13 -> [decode_target(A), read_target, decode_read(B), ifn];
-			    14 -> [decode_target(A), read_target, decode_read(B), ifg];
-			    15 -> [decode_target(A), read_target, decode_read(B), ifb];
-			    _ -> error
-			end,
-
-	    cycle(Cpu#cpu{pc = Cpu#cpu.pc + 1, target = none}, Ram, Cycles, Micro_ops, CyclesLeft);
-	1 -> %% we want to skip the instruction
+	false -> Micro_ops = case Opcode of
+				 0 -> decode_nonbasic_opcode(A, B);
+				 1 -> [decode_target(A), decode_read(B), nop, decode_write(A)];
+				 2 -> [decode_target(A), read_target, decode_read(B), nop, add, decode_write(A)];
+				 3 -> [decode_target(A), read_target, decode_read(B), nop, sub, decode_write(A)];
+				 4 -> [decode_target(A), read_target, decode_read(B), nop, mul, decode_write(A)];
+				 5 -> [decode_target(A), read_target, decode_read(B), nop, nop, divide, decode_write(A)];
+				 6 -> [decode_target(A), read_target, decode_read(B), nop, nop, mod, decode_write(A)];
+				 7 -> [decode_target(A), read_target, decode_read(B), nop, shl, decode_write(A)];
+				 8 -> [decode_target(A), read_target, decode_read(B), nop, shr, decode_write(A)];
+				 9 -> [decode_target(A), read_target, decode_read(B), logical_and, decode_write(A)];
+				 10 -> [decode_target(A), read_target, decode_read(B), logical_or, decode_write(A)];
+				 11 -> [decode_target(A), read_target, decode_read(B), logical_xor, decode_write(A)];
+				 12 -> [decode_target(A), read_target, decode_read(B), ife];
+				 13 -> [decode_target(A), read_target, decode_read(B), ifn];
+				 14 -> [decode_target(A), read_target, decode_read(B), ifg];
+				 15 -> [decode_target(A), read_target, decode_read(B), ifb];
+				 _ -> error
+			     end,
+		 
+		 cycle(Cpu#cpu{pc = Cpu#cpu.pc + 1, target = none}, Ram, Cycles, Micro_ops, CyclesLeft);
+	_ -> %% we want to skip the instruction
 	    case Opcode of
-		0 -> {Cpu#cpu{pc = Cpu#cpu.pc + 1 + calculate_pc_usage(B), skip = 0}, Ram, Cycles + 1, []};
-		_ -> {Cpu#cpu{pc = Cpu#cpu.pc + 1 + calculate_pc_usage(A) + calculate_pc_usage(B), skip = 0}, Ram, Cycles + 1, []}
+		0 -> {Cpu#cpu{pc = Cpu#cpu.pc + 1 + calculate_pc_usage(B), skip = false}, Ram, Cycles + 1, []};
+		_ -> {Cpu#cpu{pc = Cpu#cpu.pc + 1 + calculate_pc_usage(A) + calculate_pc_usage(B), skip = false}, Ram, Cycles + 1, []}
 	    end
     end;		    
 	 
 %% We have micro operations so we need to perform them
 cycle(Cpu, Ram, Cycles, [Micro_op|Micro_ops], CyclesLeft) ->
-%    io:fwrite("~p ~p ~p ~p ~p~n", [Cpu, Ram, Cycles, Micro_op, Micro_ops]),
-    io:fwrite("~p : ~p~n", [Cycles, Micro_op]),
+%    debug("~p ~p ~p ~p ~p~n", [Cpu, Ram, Cycles, Micro_op, Micro_ops]),
+    debug("~p : ~p~n", [Cycles, Micro_op]),
 
     { NewCpu, NewRam, Cost } = case Micro_op of
+				   %% internal operations
+
 				   nop -> { Cpu, Ram, 1 };
+				   
+				   { lit, Value } -> { Cpu#cpu{w = lists:append([Value], Cpu#cpu.w)}, Ram, 0};
 
 				   { read_reg, Reg } -> { Cpu#cpu{w = lists:append([reg(Cpu, Reg)], Cpu#cpu.w)}, Ram, 0};
 
@@ -282,6 +288,27 @@ cycle(Cpu, Ram, Cycles, [Micro_op|Micro_ops], CyclesLeft) ->
 							  end,
 						  { Cpu#cpu{ w = lists:append([Value], Cpu#cpu.w)}, Ram, 0 };
 				   
+				   { write_ind, Reg } -> Address = reg(Cpu, Reg),
+							 [Value|T] = Cpu#cpu.w,
+							 debug("Writing ~p to ~p via reg ~p~n", [Value, Address, Reg]),
+							 { Cpu#cpu{ w = T }, array:set(Address, Value, Ram), 1};
+
+				   write_next_ind -> Address = Cpu#cpu.target,
+						     [Value|T] = Cpu#cpu.w,
+						     debug("Writing ~p to ~p~n", [Value, Address]),
+						     { Cpu#cpu{ w = T }, array:set(Address, Value, Ram), 0 };
+							 
+				   read_next_ind -> Address = array:get(Cpu#cpu.pc, Ram),
+						    Value = array:get(Address, Ram),
+						    debug("Read ~p from ~p~n", [Value, Address]),  
+						    { Cpu#cpu{ pc = Cpu#cpu.pc + 1, w = lists:append([Value], Cpu#cpu.w) }, Ram, 1 };
+				   
+				   %% stack operations
+				   read_pop -> Value = array:get(Cpu#cpu.sp, Ram),
+					       NewSP = (Cpu#cpu.sp) band 16#ffff,
+					       { Cpu#cpu{ sp = NewSP, w = lists:append([Value], Cpu#cpu.w)}, Ram, 0};
+
+				   %% aritmetic operations
 				   add -> [A, B] = Cpu#cpu.w,
 					  Sum = A + B,
 					  Overflow = (Sum band 16#10000) bsr 16,
@@ -289,27 +316,21 @@ cycle(Cpu, Ram, Cycles, [Micro_op|Micro_ops], CyclesLeft) ->
 
 				   sub -> [A, B] = Cpu#cpu.w,
 					  Sub = B - A,
-					  io:fwrite("~p - ~p = ~p~n", [A, B, Sub]),
+					  debug("~p - ~p = ~p~n", [A, B, Sub]),
 					  Overflow = (Sub band 16#ffff0000) bsr 16,
 					  { Cpu#cpu{ w = [Sub band 16#ffff], overflow = Overflow  }, Ram, 1 };
+				   
+				   %% test operations
+				   ifn -> [A, B] = Cpu#cpu.w,
+					  { Cpu#cpu{ w = [], skip = A =:= B }, Ram, 1 };
 
-				   { write_ind, Reg } -> Address = reg(Cpu, Reg),
-							 [Value|T] = Cpu#cpu.w,
-							 io:fwrite("Writing ~p to ~p via reg ~p~n", [Value, Address, Reg]),
-							 { Cpu#cpu{ w = T }, array:set(Address, Value, Ram), 1};
-
-				   write_next_ind -> Address = Cpu#cpu.target,
-						     [Value|T] = Cpu#cpu.w,
-						     io:fwrite("Writing ~p to ~p~n", [Value, Address]),
-						     { Cpu#cpu{ w = T }, array:set(Address, Value, Ram), 0 };
-							 
-				   read_next_ind -> Address = array:get(Cpu#cpu.pc, Ram),
-						    Value = array:get(Address, Ram),
-						    io:fwrite("Read ~p from ~p~n", [Value, Address]),  
-						    { Cpu#cpu{ pc = Cpu#cpu.pc + 1, w = lists:append([Value], Cpu#cpu.w) }, Ram, 1 }
+				   %% extended operations
+				   jsr -> NewSP = (Cpu#cpu.sp - 1) band 16#ffff,
+					  [Address|T] = Cpu#cpu.w,
+					  { Cpu#cpu{ pc = Address, sp = NewSP, w = T}, array:set(NewSP, Cpu#cpu.pc, Ram), 1}
 			       end,
 
-    io:fwrite("~p~n", [NewCpu]),
+    debug("~p~n", [NewCpu]),
 
     case length(Micro_ops) of
 	0 -> {NewCpu, NewRam, Cycles + Cost, Micro_ops};
@@ -325,12 +346,14 @@ cycle(Cpu, Ram, Cycles, [Micro_op|Micro_ops], CyclesLeft) ->
     end.
 
 micro_op_cost(Operation) ->
-%    io:fwrite("Operation = ~p~n", [Operation]),
+%    debug("Operation = ~p~n", [Operation]),
     case Operation of
+	{ lit, _ } -> 0;
 	{ read_reg, _ } -> 0;
 	{ write_reg, _ } -> 0;
 	{ target_reg, _ } -> 0;
 	{ target_ind, _ } -> 0;
+	read_pop -> 0;
 	read_target -> 0;
 	write_target -> 0;
 	write_next_ind -> 0;
@@ -338,14 +361,14 @@ micro_op_cost(Operation) ->
     end.
 
 cycle(State) ->
-%    io:fwrite("State = ~p~n", [State]),
+%    debug("State = ~p~n", [State]),
 
     { Cpu, Ram, Cycles, Operations } = State,
     cycle(Cpu, Ram, Cycles, Operations, 1).
 
 cycle(State, Count) ->
-%    io:fwrite("~B ~p~n", [Count, A]),
-    io:fwrite("---~B---~n", [Count]),
+%    debug("~B ~p~n", [Count, A]),
+    debug("---~B---~n", [Count]),
     if
 	Count > 0 -> cycle(cycle(State), Count - 1);
 	true -> State
@@ -354,4 +377,4 @@ cycle(State, Count) ->
 print(State) ->
     {Cpu, _, Cycles, _} = State,
 
-    io:fwrite("~B ~p~n", [Cycles, Cpu]).
+    debug("~B ~p~n", [Cycles, Cpu]).
