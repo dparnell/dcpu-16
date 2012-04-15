@@ -1,0 +1,148 @@
+; A test piece of code that aims to exercise DCPU-16 implementations
+; Copyright 2012, Daniel Parnell <me@danielparnell.com>
+;
+
+JSR test_set
+JSR test_add
+JSR test_sub
+JSR test_mul
+
+; YAY, ALL TESTS PASSED!
+:success set PC, success
+
+:test_set
+; exercise the set instruction
+SET A, 0x0001
+SET B, 0x0010
+SET C, 0x0100
+SET X, 0x1000
+SET Y, 0xffff
+SET [X], C
+SET Z, [X]
+SET [0x0001 + X], 0x10
+SET I, [0x0001 + X]
+SET J, Y
+SET 0, X        ; this should do nothing
+:set_literal
+SET 0x5555, A
+
+IFN A, 0x01
+SET PC, failed
+IFN B, 0x0010
+SET PC, failed
+IFN C, 0x0100
+SET PC, failed
+IFN X, 0x1000
+SET PC, failed
+IFN Y, 0xffff
+SET PC, failed
+IFN Z, C
+SET PC, failed
+IFN I, 0x10
+SET PC, failed
+IFN J, Y
+SET PC, failed
+IFE 0, X
+SET PC, failed
+IFE [0], X
+SET PC, failed
+IFE 0x5555, A
+SET PC, failed
+IFN [set_literal + A], A
+SET PC, failed
+
+; All set tests have passed!
+SET PC, POP
+
+:test_add
+; the ADD instruction
+ADD [0x1000], A
+ADD B, A
+IFN O, 0	; make sure the Overflow flag is not set
+SET PC, failed
+ADD X, Y
+IFE O, 0	; make sure the Overflow flag is set this time
+SET PC, failed
+INF X, 0x0fff
+SET PC, failed
+ADD [set_literal + A], B
+:add_2_literals
+ADD 0xbeef, 0xfeed	; this seems like a silly thing to do, but the spec allows it
+
+IFN [0x1000], 0x0101
+SET PC, failed
+IFN B, 0x0011
+SET PC, failed
+IFN 0x0012, [set_literal + A]
+SET PC, failed
+IFN 0xbddc, [add_2_literals + A]
+SET PC, failed
+
+; add tests passed
+SET PC, POP
+
+:test_sub
+; the SUB instruction
+SUB B, X	; B should = 0x12 and X should be 0xffff
+IFN 0x13, X	; so the subtraction should behave like and ADD
+SET PC, failed
+
+SET X, 0x06
+SUB X, 0x0a
+IFN X, 0xfffc
+SET PC, failed
+IFN O, 0xffff
+SET PC, failed
+
+SET X, 0x1000
+SUB X, 0x00ff
+IFN X, 0x0f01
+SET PC, failed
+IFN O, 0
+SET PC, failed
+
+SUB 0x01, 0x01	; should do nothing except set the O flag to 0
+IFN O, 0
+SET PC, failed
+IFE [0x01], 0
+SET PC, failed
+
+SUB 0x01, 0x02	; should also do nothing but set the O flag to 0xffff
+IFN O, 0xffff
+SET PC, failed
+IFE [0x01], 0xffff
+SET PC, failed
+
+; subtraction tests passed :)
+SET PC, POP
+
+:test_mul
+; multiplication tests
+SET X, 0x01
+SET Y, 0x5555
+MUL X, Y
+IFN X, 0x5555
+SET PC, failed
+IFN O, 0
+SET PC, failed
+
+SET Z, 0x6666
+MUL Z, Y
+IFN Z, 0xddde
+SET PC, failed
+IFN O, 0x2221
+SET PC, failed
+
+SET B, 0
+MUL B, X
+IFN B, 0
+SET PC, failed
+IFN O, 0
+SET PC, failed
+
+; multiplication tests passed :)
+SET PC, POP
+
+
+; A test has failed
+:failed set PC, failed
