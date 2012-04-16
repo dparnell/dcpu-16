@@ -102,6 +102,31 @@ test_subroutines() ->
       dcpu16_core:get_reg(ResultCPU, a),
       dcpu16_core:get_reg(ResultCPU, pc)
     }.
+
+test_stack_operations() ->
+    CPU = dcpu16_core:init(),
+    
+    ReadyCPU = dcpu16_core:ram(CPU, 0, [
+					16#7c01,  %% SET A, 9876
+					16#2694,
+					16#8011,  %% SET B, 0
+					16#01a1,  %% SET PUSH, A
+					16#7d9d,  %% IFN PEEK, 9876
+					16#2694,
+					16#85c3,  %% SUB PC, 1 ; test failed
+					16#6011,  %% SET B, POP
+					16#7c1d,  %% IFN B, 9876
+					16#2694,  
+					16#85c3,  %% SUB PC, 1 ; test failed
+					16#85c3   %% SUB PC, 1 ; test passed
+				       ]),
+
+    ResultCPU = dcpu16_core:cycle(ReadyCPU, 15),
+    
+    {
+      dcpu16_core:get_reg(ResultCPU, b),
+      dcpu16_core:get_reg(ResultCPU, pc)
+    }.
     
 
 attempt(F) ->
@@ -120,5 +145,6 @@ basic_test_() ->
      ?_assertMatch({16#c002, 16#ffff}, attempt(fun() -> simple_subtraction() end)),
      ?_assertEqual(16#1234, attempt(fun() -> indirect_register_write() end)),
      ?_assertEqual(16#0010, attempt(fun() -> complicated_subtraction() end)),
-     ?_assertMatch({16#0001, 16#0005}, attempt(fun() -> test_subroutines() end))
+     ?_assertMatch({16#0001, 16#0005}, attempt(fun() -> test_subroutines() end)),
+     ?_assertMatch({9876, 16#000b}, attempt(fun() -> test_stack_operations() end))
     ].

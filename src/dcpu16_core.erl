@@ -266,6 +266,9 @@ cycle(Cpu, Ram, Cycles, [Micro_op|Micro_ops], CyclesLeft) ->
 				   
 				   { lit, Value } -> { Cpu#cpu{w = lists:append([Value], Cpu#cpu.w)}, Ram, 0};
 
+				   read_next_literal -> Literal = array:get(Cpu#cpu.pc, Ram),
+							{ Cpu#cpu{ pc = Cpu#cpu.pc + 1, w = lists:append([Literal], Cpu#cpu.w)}, Ram, 1 };
+
 				   { read_reg, Reg } -> { Cpu#cpu{w = lists:append([reg(Cpu, Reg)], Cpu#cpu.w)}, Ram, 0};
 
 				   { write_reg, Reg } -> [Value|T] = Cpu#cpu.w,
@@ -279,11 +282,9 @@ cycle(Cpu, Ram, Cycles, [Micro_op|Micro_ops], CyclesLeft) ->
 				   target_next_ind -> Address = array:get(Cpu#cpu.pc, Ram),
 						      { Cpu#cpu{ pc = Cpu#cpu.pc + 1, target = Address}, Ram, 1 };
 
-				   read_next_literal -> Literal = array:get(Cpu#cpu.pc, Ram),
-							{ Cpu#cpu{ pc = Cpu#cpu.pc + 1, w = lists:append([Literal], Cpu#cpu.w)}, Ram, 1 };
-
 				   read_target -> Value = case Cpu#cpu.target of
 							      { register, Reg } -> reg(Cpu, Reg);
+							      peek -> array:get(Cpu#cpu.sp, Ram);
 							      _ -> array:get(Cpu#cpu.target, Ram)
 							  end,
 						  { Cpu#cpu{ w = lists:append([Value], Cpu#cpu.w)}, Ram, 0 };
@@ -304,6 +305,13 @@ cycle(Cpu, Ram, Cycles, [Micro_op|Micro_ops], CyclesLeft) ->
 						    { Cpu#cpu{ pc = Cpu#cpu.pc + 1, w = lists:append([Value], Cpu#cpu.w) }, Ram, 1 };
 				   
 				   %% stack operations
+				   target_push -> { Cpu#cpu{ target = push }, Ram, 0 };
+				   target_peek -> { Cpu#cpu{ target = peek }, Ram, 0 };
+
+				   write_push -> [Value|T] = Cpu#cpu.w,
+						 NewSP = (Cpu#cpu.sp - 1) band 16#ffff,
+						 { Cpu#cpu{ sp = NewSP, w = T}, array:set(NewSP, Value, Ram), 0};
+
 				   read_pop -> Value = array:get(Cpu#cpu.sp, Ram),
 					       NewSP = (Cpu#cpu.sp) band 16#ffff,
 					       { Cpu#cpu{ sp = NewSP, w = lists:append([Value], Cpu#cpu.w)}, Ram, 0};
@@ -353,6 +361,9 @@ micro_op_cost(Operation) ->
 	{ write_reg, _ } -> 0;
 	{ target_reg, _ } -> 0;
 	{ target_ind, _ } -> 0;
+	target_push -> 0;
+	target_peek -> 0;
+	write_push -> 0;
 	read_pop -> 0;
 	read_target -> 0;
 	write_target -> 0;

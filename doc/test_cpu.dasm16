@@ -9,6 +9,7 @@ JSR test_sub
 JSR test_mul
 JSR test_div
 JSR test_mod
+JSR test_stack
 
 ; YAY, ALL TESTS PASSED!
 :success set PC, success
@@ -192,4 +193,16 @@ IFN A, 3
 SUB PC, 1 ; test failed
 
 ; mod tests passed :)
+SET PC, POP
+
+:test_stack
+SET A, 9876
+SET B, 0
+SET PUSH, A
+IFN PEEK, 9876
+SUB PC, 1 ; test failed
+SET B, POP
+IFN B, 9876
+SUB PC, 1 ; test failed
+; stack operations test passed :)
 SET PC, POP
