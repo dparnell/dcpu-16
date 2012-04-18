@@ -127,6 +127,38 @@ test_stack_operations() ->
       dcpu16_core:get_reg(ResultCPU, b),
       dcpu16_core:get_reg(ResultCPU, pc)
     }.
+
+
+test_subtractions_and_overflow() ->    
+    CPU = dcpu16_core:init(),
+    
+    ReadyCPU = dcpu16_core:ram(CPU, 0, [
+					16#8613,  %% SUB 0x01, 0x01  ; should do nothing except set the O flag to 0
+					16#81dd,  %% IFN O, 0
+					16#85c3,  %% SUB PC, 1 ; test failed
+					16#81ec,  %% IFE [0x01], 0
+					16#0001,  
+					16#85c3,  %% SUB PC, 1 ; test failed
+					16#8a13,  %% SUB 0x01, 0x02  ; should also do nothing but set the O flag to 0xffff
+					16#7ddd,  %% IFN O, 0xffff
+					16#ffff, 
+					16#85c3,  %% SUB PC, 1 ; test failed
+					16#7dec,  %% IFE [0x01], 0xffff
+					16#0001, 
+					16#ffff, 
+					16#85c3,  %% SUB PC, 1 ; test failed
+					16#7dc1,  %% SET PC, test_sub2       ; jump over the next instruction
+					16#0012,
+					16#7dc1,  %% SET PC, test_sub3       ; jump to the return instruction
+					16#0013,
+					16#8dc3,  %% :test_sub2 SUB PC, 3               ; branch back to the jump to the return
+					16#85c3   %% :test_sub3 SUB PC, 1 ; test passed
+				       ]),
+
+    ResultCPU = dcpu16_core:cycle(ReadyCPU, 26),
+    
+    dcpu16_core:get_reg(ResultCPU, pc).
+    
     
 
 attempt(F) ->
@@ -146,5 +178,6 @@ basic_test_() ->
      ?_assertEqual(16#1234, attempt(fun() -> indirect_register_write() end)),
      ?_assertEqual(16#0010, attempt(fun() -> complicated_subtraction() end)),
      ?_assertMatch({16#0001, 16#0005}, attempt(fun() -> test_subroutines() end)),
-     ?_assertMatch({9876, 16#000b}, attempt(fun() -> test_stack_operations() end))
+     ?_assertMatch({9876, 16#000b}, attempt(fun() -> test_stack_operations() end)),
+     ?_assertEqual(13, attempt(fun() -> test_subtractions_and_overflow() end))
     ].

@@ -116,7 +116,7 @@ decode_read(Source) ->
 	26 -> read_push;
 	27 -> { read_reg, sp };
 	28 -> { read_reg, pc };
-	29 -> { read_reg, o };
+	29 -> { read_reg, overflow };
 	30 -> read_next_ind;
 	31 -> read_next_literal;
 	 _ -> {lit, Source band 31}
@@ -153,10 +153,10 @@ decode_target(Source) ->
 	26 -> target_push;
 	27 -> { target_reg, sp };
 	28 -> { target_reg, pc };
-	29 -> { target_reg, o };
+	29 -> { target_reg, overflow };
 	30 -> target_next_ind;
 	31 -> target_next_lit;
-	 _ -> target_lit
+	 _ -> {target_lit, Source band 31}
     end.
 
 %% produce the micro operations for a write from the working stack
@@ -193,7 +193,7 @@ decode_write(Destination) ->
 	28 -> { write_reg, pc };
 	29 -> { write_reg, o };
 	30 -> write_next_ind;
-	_ -> nop
+	_ -> write_lit
     end.
 
 %% decode a non-basic opcode
@@ -279,11 +279,14 @@ cycle(Cpu, Ram, Cycles, [Micro_op|Micro_ops], CyclesLeft) ->
 
 				   { target_ind, Reg } -> { Cpu#cpu{target = reg(Cpu, Reg)}, Ram, 0 };
 				   
+				   { target_lit, Value } -> { Cpu#cpu{target = { lit, Value} }, Ram, 0 };
+
 				   target_next_ind -> Address = array:get(Cpu#cpu.pc, Ram),
 						      { Cpu#cpu{ pc = Cpu#cpu.pc + 1, target = Address}, Ram, 1 };
 
 				   read_target -> Value = case Cpu#cpu.target of
 							      { register, Reg } -> reg(Cpu, Reg);
+							      { lit, Lit } -> Lit;
 							      peek -> array:get(Cpu#cpu.sp, Ram);
 							      _ -> array:get(Cpu#cpu.target, Ram)
 							  end,
@@ -298,7 +301,10 @@ cycle(Cpu, Ram, Cycles, [Micro_op|Micro_ops], CyclesLeft) ->
 						     [Value|T] = Cpu#cpu.w,
 						     debug("Writing ~p to ~p~n", [Value, Address]),
 						     { Cpu#cpu{ w = T }, array:set(Address, Value, Ram), 0 };
-							 
+				   
+				   write_lit -> [Value|T] = Cpu#cpu.w,
+						{ Cpu#cpu{ w = T }, Ram, 0 };
+
 				   read_next_ind -> Address = array:get(Cpu#cpu.pc, Ram),
 						    Value = array:get(Address, Ram),
 						    debug("Read ~p from ~p~n", [Value, Address]),  
@@ -361,9 +367,11 @@ micro_op_cost(Operation) ->
 	{ write_reg, _ } -> 0;
 	{ target_reg, _ } -> 0;
 	{ target_ind, _ } -> 0;
+	{ target_lit, _ } -> 0;
 	target_push -> 0;
 	target_peek -> 0;
 	write_push -> 0;
+	write_lit -> 0;
 	read_pop -> 0;
 	read_target -> 0;
 	write_target -> 0;
