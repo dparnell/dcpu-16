@@ -338,6 +338,9 @@ cycle(Cpu, Ram, Cycles, [Micro_op|Micro_ops], CyclesLeft) ->
 				   ifn -> [A, B] = Cpu#cpu.w,
 					  { Cpu#cpu{ w = [], skip = A =:= B }, Ram, 1 };
 
+				   ife -> [A, B] = Cpu#cpu.w,
+					  { Cpu#cpu{ w = [], skip = not(A =:= B) }, Ram, 1 };
+
 				   %% extended operations
 				   jsr -> NewSP = (Cpu#cpu.sp - 1) band 16#ffff,
 					  [Address|T] = Cpu#cpu.w,

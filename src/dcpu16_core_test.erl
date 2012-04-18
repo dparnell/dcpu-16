@@ -179,5 +179,5 @@ basic_test_() ->
      ?_assertEqual(16#0010, attempt(fun() -> complicated_subtraction() end)),
      ?_assertMatch({16#0001, 16#0005}, attempt(fun() -> test_subroutines() end)),
      ?_assertMatch({9876, 16#000b}, attempt(fun() -> test_stack_operations() end)),
-     ?_assertEqual(13, attempt(fun() -> test_subtractions_and_overflow() end))
+     ?_assertEqual(16#0013, attempt(fun() -> test_subtractions_and_overflow() end))
     ].
