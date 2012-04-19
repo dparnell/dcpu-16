@@ -118,16 +118,37 @@ test_stack_operations() ->
 					16#7c1d,  %% IFN B, 9876
 					16#2694,  
 					16#85c3,  %% SUB PC, 1 ; test failed
+
+					16#7da1,  %% SET PUSH, 55
+					16#0037,
+					16#7da1,  %% SET PUSH, 90 
+					16#005a, 
+					16#6182,  %% ADD POP, POP
+					16#6a11,  %% SET 1, PUSH
+					16#6a11,  %% SET 1, PUSH
+					16#6001,  %% SET A, POP
+					16#6011,  %% SET B, POP
+					16#7c0d,  %% IFN A, 145
+					16#0091,  
+					16#85c3,  %% SUB PC, 1 ; test failed
+					16#7c1d,  %% IFN B, 55
+					16#0037, 
+					16#85c3,  %% SUB PC, 1 ; test failed
+
+					16#6401,  %% SET A, PEEK    ; save off the top of the stack
+					16#7d91,  %% SET PEEK, 1234 ; set the top ofthe stack
+					16#04d2, 
+					16#7d8d,  %% IFN POP, 1234
+					16#04d2, 
+					16#85c3,  %% SUB PC, 1 ; test failed
+					16#01a1,  %% SET PUSH, A    ; restore the top of thestack
+
 					16#85c3   %% SUB PC, 1 ; test passed
 				       ]),
 
-    ResultCPU = dcpu16_core:cycle(ReadyCPU, 15),
+    ResultCPU = dcpu16_core:cycle(ReadyCPU, 43),
     
-    {
-      dcpu16_core:get_reg(ResultCPU, b),
-      dcpu16_core:get_reg(ResultCPU, pc)
-    }.
-
+    dcpu16_core:get_reg(ResultCPU, pc).
 
 subtractions_and_overflow() ->    
     CPU = dcpu16_core:init(),
@@ -208,7 +229,7 @@ basic_test_() ->
      ?_assertEqual(16#1234, attempt(fun() -> indirect_register_write() end)),
      ?_assertEqual(16#0010, attempt(fun() -> complicated_subtraction() end)),
      ?_assertMatch({16#0001, 16#0005}, attempt(fun() -> test_subroutines() end)),
-     ?_assertMatch({9876, 16#000b}, attempt(fun() -> test_stack_operations() end)),
+     ?_assertEqual(16#0021, attempt(fun() -> test_stack_operations() end)),
      ?_assertEqual(16#0013, attempt(fun() -> subtractions_and_overflow() end)),
      ?_assertEqual(16#0015, attempt(fun() -> compare_instructions() end))
     ].

@@ -205,6 +205,26 @@ SUB PC, 1 ; test failed
 SET B, POP
 IFN B, 9876
 SUB PC, 1 ; test failed
+
+; I can't imagine any reason to do this, but the spec allows it, so I need to test it
+SET PUSH, 55
+SET PUSH, 90
+ADD POP, POP
+SET 1, PUSH
+SET 1, PUSH
+SET A, POP
+SET B, POP
+IFN A, 145
+SUB PC, 1 ; failed
+IFN B, 55
+SUB PC, 1 ; failed
+
+SET A, PEEK    ; save off the top of the stack
+SET PEEK, 1234 ; set the top of the stack
+IFN POP, 1234
+SUB PC, 1 ; test failed
+SET PUSH, A    ; restore the top of the stack
+
 ; stack operations test passed :)
 SET PC, POP
 
