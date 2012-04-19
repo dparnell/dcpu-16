@@ -1,3 +1,5 @@
+[![Build Status](https://secure.travis-ci.org/dparnell/dcpu-16.png)](http://travis-ci.org/dparnell/dcpy-16)
+
 What is this?
 =============
 
