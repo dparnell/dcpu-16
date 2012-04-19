@@ -156,10 +156,8 @@ test_subtractions_and_overflow() ->
 				       ]),
 
     ResultCPU = dcpu16_core:cycle(ReadyCPU, 26),
-    
+
     dcpu16_core:get_reg(ResultCPU, pc).
-    
-    
 
 attempt(F) ->
     try
