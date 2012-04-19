@@ -10,6 +10,7 @@ JSR test_mul
 JSR test_div
 JSR test_mod
 JSR test_stack
+JSR test_compare
 
 ; YAY, ALL TESTS PASSED!
 :success set PC, success
@@ -205,4 +206,34 @@ SET B, POP
 IFN B, 9876
 SUB PC, 1 ; test failed
 ; stack operations test passed :)
+SET PC, POP
+
+:test_compare
+SET A, 1
+IFN A, 1
+SUB PC, 1 ; test failed
+
+IFE A, 1
+ADD PC, 1 ; skip the next instruction
+SUB PC, 1 ; test failed
+
+SET B, 1
+IFG A, B
+SUB PC, 1 ; test failed
+SET A, 0
+IFG A, B
+ADD PC, 1 ; skip the next instruction
+SUB PC, 1 ; test failed
+
+SET A, 1
+SET B, 2
+IFB A, B
+SUB PC, 1 ; test failed
+
+SET B, 3
+IFB A, B
+ADD PC, 1 ; skip the next instruction
+SUB PC, 1 ; test failed
+
+; success
 SET PC, POP

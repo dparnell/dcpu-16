@@ -129,7 +129,7 @@ test_stack_operations() ->
     }.
 
 
-test_subtractions_and_overflow() ->    
+subtractions_and_overflow() ->    
     CPU = dcpu16_core:init(),
     
     ReadyCPU = dcpu16_core:ram(CPU, 0, [
@@ -159,6 +159,19 @@ test_subtractions_and_overflow() ->
 
     dcpu16_core:get_reg(ResultCPU, pc).
 
+compare_instructions() ->    
+    CPU = dcpu16_core:init(),
+    
+    ReadyCPU = dcpu16_core:ram(CPU, 0, [
+					16#8401, 16#840d, 16#85c3, 16#840c, 16#85c2, 16#85c3, 16#8411, 16#040e,
+					16#85c3, 16#a801, 16#040e, 16#85c2, 16#85c3, 16#8401, 16#8811, 16#040f,
+					16#85c3, 16#8c11, 16#040f, 16#85c2, 16#85c3, 16#85c3
+				       ]),
+
+    ResultCPU = dcpu16_core:cycle(ReadyCPU, 27),
+
+    dcpu16_core:get_reg(ResultCPU, pc).
+
 attempt(F) ->
     try
 	F()
@@ -177,5 +190,6 @@ basic_test_() ->
      ?_assertEqual(16#0010, attempt(fun() -> complicated_subtraction() end)),
      ?_assertMatch({16#0001, 16#0005}, attempt(fun() -> test_subroutines() end)),
      ?_assertMatch({9876, 16#000b}, attempt(fun() -> test_stack_operations() end)),
-     ?_assertEqual(16#0013, attempt(fun() -> test_subtractions_and_overflow() end))
+     ?_assertEqual(16#0013, attempt(fun() -> subtractions_and_overflow() end)),
+     ?_assertEqual(16#0015, attempt(fun() -> compare_instructions() end))
     ].

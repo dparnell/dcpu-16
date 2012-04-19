@@ -323,23 +323,29 @@ cycle(Cpu, Ram, Cycles, [Micro_op|Micro_ops], CyclesLeft) ->
 					       { Cpu#cpu{ sp = NewSP, w = lists:append([Value], Cpu#cpu.w)}, Ram, 0};
 
 				   %% aritmetic operations
-				   add -> [A, B] = Cpu#cpu.w,
+				   add -> [B, A] = Cpu#cpu.w,
 					  Sum = A + B,
 					  Overflow = (Sum band 16#10000) bsr 16,
 					  { Cpu#cpu{ w = [Sum band 16#ffff], overflow = Overflow  }, Ram, 1 } ;
 
-				   sub -> [A, B] = Cpu#cpu.w,
-					  Sub = B - A,
+				   sub -> [B, A] = Cpu#cpu.w,
+					  Sub = A - B,
 					  debug("~p - ~p = ~p~n", [A, B, Sub]),
 					  Overflow = (Sub band 16#ffff0000) bsr 16,
 					  { Cpu#cpu{ w = [Sub band 16#ffff], overflow = Overflow  }, Ram, 1 };
 				   
 				   %% test operations
-				   ifn -> [A, B] = Cpu#cpu.w,
+				   ifn -> [B, A] = Cpu#cpu.w,
 					  { Cpu#cpu{ w = [], skip = A =:= B }, Ram, 1 };
 
-				   ife -> [A, B] = Cpu#cpu.w,
+				   ife -> [B, A] = Cpu#cpu.w,
 					  { Cpu#cpu{ w = [], skip = not(A =:= B) }, Ram, 1 };
+
+				   ifg -> [B, A] = Cpu#cpu.w,
+					  { Cpu#cpu{ w = [], skip = not(A > B) }, Ram, 1 };
+
+				   ifb -> [B, A] = Cpu#cpu.w,
+					  { Cpu#cpu{ w = [], skip = (A band B) =:= 0 }, Ram, 1 };
 
 				   %% extended operations
 				   jsr -> NewSP = (Cpu#cpu.sp - 1) band 16#ffff,
