@@ -163,9 +163,28 @@ compare_instructions() ->
     CPU = dcpu16_core:init(),
     
     ReadyCPU = dcpu16_core:ram(CPU, 0, [
-					16#8401, 16#840d, 16#85c3, 16#840c, 16#85c2, 16#85c3, 16#8411, 16#040e,
-					16#85c3, 16#a801, 16#040e, 16#85c2, 16#85c3, 16#8401, 16#8811, 16#040f,
-					16#85c3, 16#8c11, 16#040f, 16#85c2, 16#85c3, 16#85c3
+					16#8401, %% SET A, 1
+					16#840d, %% IFN A, 1
+					16#85c3, %% SUB PC, 1 ; test failed
+					16#840c, %% IFE A, 1
+					16#85c2, %% ADD PC, 1 ; skip the next instruction
+					16#85c3, %% SUB PC, 1 ; test failed
+					16#8411, %% SET B, 1
+					16#040e, %% IFG A, B
+					16#85c3, %% SUB PC, 1 ; test failed
+					16#a801, %% SET A, 10
+					16#040e, %% IFG A, B
+					16#85c2, %% ADD PC, 1 ; skip the next instruction
+					16#85c3, %% SUB PC, 1 ; test failed
+					16#8401, %% SET A, 1
+					16#8811, %% SET B, 2
+					16#040f, %% IFB B, A
+					16#85c3, %% SUB PC, 1 ; test failed
+					16#8c11, %% SET B, 3
+					16#040f, %% IFB A, B
+					16#85c2, %% ADD PC, 1 ; skip the next instruction
+					16#85c3, %% SUB PC, 1 ; test failed
+					16#85c3  %% SUB PC, 1 ; test successful :)
 				       ]),
 
     ResultCPU = dcpu16_core:cycle(ReadyCPU, 27),
