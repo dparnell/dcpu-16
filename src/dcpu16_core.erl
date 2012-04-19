@@ -302,7 +302,7 @@ cycle(Cpu, Ram, Cycles, [Micro_op|Micro_ops], CyclesLeft) ->
 						     debug("Writing ~p to ~p~n", [Value, Address]),
 						     { Cpu#cpu{ w = T }, array:set(Address, Value, Ram), 0 };
 				   
-				   write_lit -> [Value|T] = Cpu#cpu.w,
+				   write_lit -> [_|T] = Cpu#cpu.w,
 						{ Cpu#cpu{ w = T }, Ram, 0 };
 
 				   read_next_ind -> Address = array:get(Cpu#cpu.pc, Ram),
