@@ -9,12 +9,10 @@
 
 -module(dcpu16_core).
 
--import(array, [new/2, get/2, set/3]).
-
 -export([init/0, ram/2, ram/3, get_reg/2, set_reg/3, cycle/1, cycle/2, print/1]).
 
 %% everything about the CPU is in the cpu record
--record(cpu, { a = 0, b = 0, c = 0, x = 0, y = 0, z = 0, i = 0, j = 0, pc = 0, sp = 0, overflow = 0, skip = false, w = [], target = none }).
+-record(cpu, { a = 0, b = 0, c = 0, x = 0, y = 0, z = 0, i = 0, j = 0, pc = 0, sp = 0, overflow = 0, skip = false, w = [], target = none, pointer = none }).
 
 %% Set up a new DCPU-16 instance with everything we need
 init() ->
@@ -63,7 +61,9 @@ reg(Cpu, Reg) ->
 	pc -> Cpu#cpu.pc;
 	sp -> Cpu#cpu.sp;
 	overflow -> Cpu#cpu.overflow;
-	skip -> Cpu#cpu.skip
+	skip -> Cpu#cpu.skip;
+	target -> Cpu#cpu.target;
+	pointer -> Cpu#cpu.pointer
     end.
 
 reg(Cpu, Reg, Value) ->
@@ -80,9 +80,20 @@ reg(Cpu, Reg, Value) ->
 	pc -> Cpu#cpu{pc = Value};
 	sp -> Cpu#cpu{sp = Value};
 	overflow -> Cpu#cpu{overflow = Value};
-	skip -> Cpu#cpu{skip = Value}
+	skip -> Cpu#cpu{skip = Value};
+	target -> Cpu#cpu{target = Value};
+	pointer -> Cpu#cpu{pointer = Value}		      
     end.
 
+
+decode_read_next_ind(Reg) ->
+    [ nop, 
+      { read_ind, pc },
+      { inc, pc },
+      { add, Reg },
+      { write_reg, pointer },
+      { read_reg_ind, pointer }
+    ].
 
 %% produce the micro operations for a read into the working stack
 decode_read(Source) ->
@@ -103,105 +114,63 @@ decode_read(Source) ->
 	13 -> { read_ind, z };
 	14 -> { read_ind, i };
 	15 -> { read_ind, j };
-	16 -> { read_next_ind, a };
-	17 -> { read_next_ind, b };
-	18 -> { read_next_ind, c };
-	19 -> { read_next_ind, x };
-	20 -> { read_next_ind, y };
-	21 -> { read_next_ind, z };
-	22 -> { read_next_ind, i };
-	23 -> { read_next_ind, j };
-	24 -> read_pop;
-	25 -> read_peek;
-	26 -> read_push;
+ 	16 -> decode_read_next_ind(a);
+	17 -> decode_read_next_ind(b);
+	18 -> decode_read_next_ind(c);
+	19 -> decode_read_next_ind(x);
+	20 -> decode_read_next_ind(y);
+	21 -> decode_read_next_ind(z);
+	22 -> decode_read_next_ind(i);
+	23 -> decode_read_next_ind(j);
+	24 -> [ { read_reg, sp }, { write_reg, pointer }, { read_ind, sp }, { inc, sp }];  %% POP  == [sp++]
+	25 -> [ { read_reg, sp }, { write_reg, pointer }, { read_ind, sp }];               %% PEEK == [sp]
+	26 -> [ { dec, sp }, { read_reg, sp }, { write_reg, pointer}, { read_ind, sp} ];   %% PUSH == [--sp]
 	27 -> { read_reg, sp };
 	28 -> { read_reg, pc };
 	29 -> { read_reg, overflow };
-	30 -> read_next_ind;
-	31 -> read_next_literal;
+	30 -> [ nop, { read_ind, pc }, { inc, pc }, { write_reg, pointer }, { read_ind, pointer } ] ; %% [next word]
+	31 -> [ nop, { read_reg, pc }, { inc, pc }, { write_reg, pointer }, { read_ind, pointer } ] ; %% next word (literal)
 	 _ -> {lit, Source band 31}
-    end.
-
-decode_target(Source) ->
-    case Source of
-	 0 -> { target_reg, a };
-	 1 -> { target_reg, b };
-	 2 -> { target_reg, c };
-	 3 -> { target_reg, x };
-	 4 -> { target_reg, y };
-	 5 -> { target_reg, z };
-	 6 -> { target_reg, i };
-	 7 -> { target_reg, j };
-	 8 -> { target_ind, a };
-	 9 -> { target_ind, b };
-	10 -> { target_ind, c };
-	11 -> { target_ind, x };
-	12 -> { target_ind, y };
-	13 -> { target_ind, z };
-	14 -> { target_ind, i };
-	15 -> { target_ind, j };
-	16 -> { target_next_ind, a };
-	17 -> { target_next_ind, b };
-	18 -> { target_next_ind, c };
-	19 -> { target_next_ind, x };
-	20 -> { target_next_ind, y };
-	21 -> { target_next_ind, z };
-	22 -> { target_next_ind, i };
-	23 -> { target_next_ind, j };
-	24 -> target_pop;
-	25 -> target_peek;
-	26 -> target_push;
-	27 -> { target_reg, sp };
-	28 -> { target_reg, pc };
-	29 -> { target_reg, overflow };
-	30 -> target_next_ind;
-	31 -> target_next_lit;
-	 _ -> {target_lit, Source band 31}
     end.
 
 %% produce the micro operations for a write from the working stack
 decode_write(Destination) ->
     case Destination of
-	 0 -> { write_reg, a };
-	 1 -> { write_reg, b };
-	 2 -> { write_reg, c };
-	 3 -> { write_reg, x };
-	 4 -> { write_reg, y };
-	 5 -> { write_reg, z };
-	 6 -> { write_reg, i };
-	 7 -> { write_reg, j };
-	 8 -> { write_ind, a };
- 	 9 -> { write_ind, b };
+	0 -> { write_reg, a };
+	1 -> { write_reg, b };
+	2 -> { write_reg, c };
+	3 -> { write_reg, x };
+	4 -> { write_reg, y };
+	5 -> { write_reg, z };
+	6 -> { write_reg, i };
+	7 -> { write_reg, j };
+	8 -> { write_ind, a };
+	9 -> { write_ind, b };
 	10 -> { write_ind, c };
 	11 -> { write_ind, x };
 	12 -> { write_ind, y };
 	13 -> { write_ind, z };
 	14 -> { write_ind, i };
 	15 -> { write_ind, j };
-	16 -> { write_next_ind, a };
-	17 -> { write_next_ind, b };
-	18 -> { write_next_ind, c };
-	19 -> { write_next_ind, x };
-	20 -> { write_next_ind, y };
-	21 -> { write_next_ind, z };
-	22 -> { write_next_ind, i };
-	23 -> { write_next_ind, j };
-	24 -> write_pop;
-	25 -> write_peek;
-	26 -> write_push;
+	16 -> { write_ind, target };
+	17 -> { write_ind, target };
+	18 -> { write_ind, target };
+	19 -> { write_ind, target };
+	20 -> { write_ind, target };
+	21 -> { write_ind, target };
+	22 -> { write_ind, target };
+	23 -> { write_int, target };
+	24 -> { write_ind, target }; %% POP
+	25 -> { write_ind, target }; %% PEEK
+	26 -> { write_ind, target }; %% PUSH
 	27 -> { write_reg, sp };
 	28 -> { write_reg, pc };
 	29 -> { write_reg, o };
-	30 -> write_next_ind;
-	_ -> write_lit
+	30 -> { write_ind, target };
+	31 -> { write_ind, target };
+	_ -> drop
     end.
 
-target_read(Source) ->
-    case Source of
-	24 -> read_target_pop;
-	26 -> read_target_push;
-	_ -> read_target
-    end.
 %% decode a non-basic opcode
 decode_nonbasic_opcode(Opcode, A) ->
     case Opcode of
@@ -234,25 +203,26 @@ cycle(Cpu, Ram, Cycles, [], CyclesLeft) ->
     case Cpu#cpu.skip of
 	false -> Micro_ops = case Opcode of
 				 0 -> decode_nonbasic_opcode(A, B);
-				 1 -> [decode_target(A), decode_read(B), nop, decode_write(A)];
-				 2 -> [decode_target(A), target_read(A), decode_read(B), nop, add, decode_write(A)];
-				 3 -> [decode_target(A), target_read(A), decode_read(B), nop, sub, decode_write(A)];
-				 4 -> [decode_target(A), target_read(A), decode_read(B), nop, mul, decode_write(A)];
-				 5 -> [decode_target(A), target_read(A), decode_read(B), nop, nop, divide, decode_write(A)];
-				 6 -> [decode_target(A), target_read(A), decode_read(B), nop, nop, mod, decode_write(A)];
-				 7 -> [decode_target(A), target_read(A), decode_read(B), nop, shl, decode_write(A)];
-				 8 -> [decode_target(A), target_read(A), decode_read(B), nop, shr, decode_write(A)];
-				 9 -> [decode_target(A), target_read(A), decode_read(B), logical_and, decode_write(A)];
-				 10 -> [decode_target(A), target_read(A), decode_read(B), logical_or, decode_write(A)];
-				 11 -> [decode_target(A), target_read(A), decode_read(B), logical_xor, decode_write(A)];
-				 12 -> [decode_target(A), target_read(A), decode_read(B), ife];
-				 13 -> [decode_target(A), target_read(A), decode_read(B), ifn];
-				 14 -> [decode_target(A), target_read(A), decode_read(B), ifg];
-				 15 -> [decode_target(A), target_read(A), decode_read(B), ifb];
+				 1 -> [decode_read(A), drop, set_target, decode_read(B), nop, decode_write(A)];
+				 2 -> [decode_read(A), set_target, decode_read(B), nop, add, decode_write(A)];
+				 3 -> [decode_read(A), set_target, decode_read(B), nop, sub, decode_write(A)];
+				 4 -> [decode_read(A), set_target, decode_read(B), nop, mul, decode_write(A)];
+				 5 -> [decode_read(A), set_target, decode_read(B), nop, nop, divide, decode_write(A)];
+				 6 -> [decode_read(A), set_target, decode_read(B), nop, nop, mod, decode_write(A)];
+				 7 -> [decode_read(A), set_target, decode_read(B), nop, shl, decode_write(A)];
+				 8 -> [decode_read(A), set_target, decode_read(B), nop, shr, decode_write(A)];
+				 9 -> [decode_read(A), set_target, decode_read(B), logical_and, decode_write(A)];
+				 10 -> [decode_read(A), set_target, decode_read(B), logical_or, decode_write(A)];
+				 11 -> [decode_read(A), set_target, decode_read(B), logical_xor, decode_write(A)];
+				 12 -> [decode_read(A), set_target, decode_read(B), ife];
+				 13 -> [decode_read(A), set_target, decode_read(B), ifn];
+				 14 -> [decode_read(A), set_target, decode_read(B), ifg];
+				 15 -> [decode_read(A), set_target, decode_read(B), ifb];
 				 _ -> error
 			     end,
-		 
-		 cycle(Cpu#cpu{pc = Cpu#cpu.pc + 1, target = none}, Ram, Cycles, Micro_ops, CyclesLeft);
+
+%		 debug("Micro ops: ~p~n", [Micro_ops]),
+		 cycle(Cpu#cpu{pc = Cpu#cpu.pc + 1, target = none, pointer = none}, Ram, Cycles, lists:flatten(Micro_ops), CyclesLeft);
 	_ -> %% we want to skip the instruction
 	    case Opcode of
 		0 -> {Cpu#cpu{pc = Cpu#cpu.pc + 1 + calculate_pc_usage(B), skip = false}, Ram, Cycles + 1, []};
@@ -270,7 +240,22 @@ cycle(Cpu, Ram, Cycles, [Micro_op|Micro_ops], CyclesLeft) ->
 
 				   nop -> { Cpu, Ram, 1 };
 				   
-				   { lit, Value } -> { Cpu#cpu{w = lists:append([Value], Cpu#cpu.w)}, Ram, 0};
+				   free_nop -> { Cpu, Ram, 0 };
+
+				   drop -> [_|T] = Cpu#cpu.w,
+					   { Cpu#cpu{w = T}, Ram, 0};
+				   
+				   dup -> [Value|_] = Cpu#cpu.w,
+					  { Cpu#cpu{w = lists:append([Value], Cpu#cpu.w)}, Ram, 0 };
+
+				   set_target -> Address = Cpu#cpu.pointer,
+						 { Cpu#cpu{target = Address}, Ram, 0 };
+
+				   { add, Reg } -> [V|T] = Cpu#cpu.w,
+						   Result = (V + reg(Cpu, Reg)) band 16#ffff,
+						   { Cpu#cpu{w = lists:append([Result], T)}, Ram, 0 };
+				   
+				   { lit, Value } -> { Cpu#cpu{w = lists:append([Value], Cpu#cpu.w)}, Ram, 0 };
 
 				   read_next_literal -> Literal = array:get(Cpu#cpu.pc, Ram),
 							{ Cpu#cpu{ pc = Cpu#cpu.pc + 1, w = lists:append([Literal], Cpu#cpu.w)}, Ram, 1 };
@@ -281,69 +266,20 @@ cycle(Cpu, Ram, Cycles, [Micro_op|Micro_ops], CyclesLeft) ->
 							 Temp = reg(Cpu, Reg, Value),
 							 { Temp#cpu{w = T}, Ram, 0 };
 
-				   { target_reg, Reg } -> { Cpu#cpu{target = {register, Reg}}, Ram, 0 };
+				   { read_ind, Reg } -> Address = reg(Cpu, Reg),
+							Value = array:get(Address, Ram),
+							{ Cpu#cpu{ w = lists:append([Value], Cpu#cpu.w) }, Ram, 0 };
 
-				   { target_ind, Reg } -> { Cpu#cpu{target = reg(Cpu, Reg)}, Ram, 0 };
-				   
-				   { target_lit, Value } -> { Cpu#cpu{target = { lit, Value} }, Ram, 0 };
-
-				   target_next_ind -> Address = array:get(Cpu#cpu.pc, Ram),
-						      { Cpu#cpu{ pc = Cpu#cpu.pc + 1, target = Address}, Ram, 1 };
-				   
-				   read_target -> Value = case Cpu#cpu.target of
-							      { register, Reg } -> reg(Cpu, Reg);
-							      { lit, Lit } -> Lit;
-							      peek -> array:get(Cpu#cpu.sp, Ram);
-							     
-							      _ -> array:get(Cpu#cpu.target, Ram)
-							  end,
-						  { Cpu#cpu{ w = lists:append([Value], Cpu#cpu.w)}, Ram, 0 };
-				   
 				   { write_ind, Reg } -> Address = reg(Cpu, Reg),
 							 [Value|T] = Cpu#cpu.w,
-							 { Cpu#cpu{ w = T }, array:set(Address, Value, Ram), 1};
+							 { Cpu#cpu{ w = T }, array:set(Address, Value, Ram), 0};
 
-				   write_next_ind -> Address = Cpu#cpu.target,
-						     [Value|T] = Cpu#cpu.w,
-						     { Cpu#cpu{ w = T }, array:set(Address, Value, Ram), 0 };
-				   
-				   write_lit -> [_|T] = Cpu#cpu.w,
-						{ Cpu#cpu{ w = T }, Ram, 0 };
 
-				   read_next_ind -> Address = array:get(Cpu#cpu.pc, Ram),
-						    Value = array:get(Address, Ram),
-						    debug("Read ~p from ~p~n", [Value, Address]),  
-						    { Cpu#cpu{ pc = Cpu#cpu.pc + 1, w = lists:append([Value], Cpu#cpu.w) }, Ram, 1 };
-				   
-				   %% stack operations
-				   target_push -> { Cpu#cpu{ target = push }, Ram, 0 };
-				   target_peek -> { Cpu#cpu{ target = peek }, Ram, 0 };
-				   target_pop -> { Cpu#cpu{ target = pop }, Ram, 0 };
+				   { inc, Reg } -> Value = (reg(Cpu, Reg) + 1) band 16#ffff,
+						   { reg(Cpu, Reg, Value), Ram, 0 };
 
-				   read_target_push -> NewSP = (Cpu#cpu.sp - 1) band 16#ffff,
-						       Value = array:get(NewSP, Ram),
-						       { Cpu#cpu{ sp = NewSP, w = lists:append([Value], Cpu#cpu.w)}, Ram, 0 };
-
-				   read_target_pop -> Value = array:get(Cpu#cpu.sp, Ram),
-						      NewSP = (Cpu#cpu.sp + 1) band 16#ffff,
-						       { Cpu#cpu{ sp = NewSP, w = lists:append([Value], Cpu#cpu.w)}, Ram, 0 };
-
-				   write_pop -> [Value|T] = Cpu#cpu.w,
-						PopRam = array:set(Cpu#cpu.sp, Value, Ram),
-						NewSP = (Cpu#cpu.sp + 1) band 16#ffff,
-						{ Cpu#cpu{ sp = NewSP, w = T}, PopRam, 0 };
-
-				   write_push -> [Value|T] = Cpu#cpu.w,
-						 NewSP = (Cpu#cpu.sp - 1) band 16#ffff,
-						 { Cpu#cpu{ sp = NewSP, w = T}, array:set(NewSP, Value, Ram), 0};
-
-				   read_pop -> Value = array:get(Cpu#cpu.sp, Ram),
-					       NewSP = (Cpu#cpu.sp + 1) band 16#ffff,
-					       { Cpu#cpu{ sp = NewSP, w = lists:append([Value], Cpu#cpu.w)}, Ram, 0};
-
-				   read_push -> NewSP = (Cpu#cpu.sp - 1) band 16#ffff,
-						Value = array:get(NewSP, Ram),						
-						{ Cpu#cpu{ sp = NewSP, w = lists:append([Value], Cpu#cpu.w)}, Ram, 0};
+				   { dec, Reg } -> Value = (reg(Cpu, Reg) - 1) band 16#ffff,
+						   { reg(Cpu, Reg, Value), Ram, 0 };
 
 				   %% aritmetic operations
 				   add -> [B, A] = Cpu#cpu.w,
@@ -372,7 +308,9 @@ cycle(Cpu, Ram, Cycles, [Micro_op|Micro_ops], CyclesLeft) ->
 				   %% extended operations
 				   jsr -> NewSP = (Cpu#cpu.sp - 1) band 16#ffff,
 					  [Address|T] = Cpu#cpu.w,
-					  { Cpu#cpu{ pc = Address, sp = NewSP, w = T}, array:set(NewSP, Cpu#cpu.pc, Ram), 1}
+					  { Cpu#cpu{ pc = Address, sp = NewSP, w = T}, array:set(NewSP, Cpu#cpu.pc, Ram), 1};
+
+				   reserved -> reserved_dcpu_instruction
 			       end,
 
     debug("~p~n", [NewCpu]),
@@ -393,23 +331,19 @@ cycle(Cpu, Ram, Cycles, [Micro_op|Micro_ops], CyclesLeft) ->
 micro_op_cost(Operation) ->
 %    debug("Operation = ~p~n", [Operation]),
     case Operation of
+	free_nop -> 0;
+	pop_w -> 0;
+	dup -> 0;
+	set_target -> 0;
 	{ lit, _ } -> 0;
+	{ inc, _ } -> 0;
+	{ dec, _ } -> 0;
+	{ add, _ } -> 0;
 	{ read_reg, _ } -> 0;
 	{ write_reg, _ } -> 0;
-	{ target_reg, _ } -> 0;
-	{ target_ind, _ } -> 0;
-	{ target_lit, _ } -> 0;
-	target_push -> 0;
-	target_peek -> 0;
-	target_pop -> 0;
-	write_pop -> 0;
-	write_push -> 0;
+	{ read_ind, _ } -> 0;
+	{ write_ind, _ } -> 0;
 	write_lit -> 0;
-	read_pop -> 0;
-	read_target -> 0;
-	read_target_push -> 0;
-	read_target_pop -> 0;
-	write_target -> 0;
 	write_next_ind -> 0;
 	_ -> 1	       
     end.
