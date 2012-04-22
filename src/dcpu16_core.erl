@@ -192,13 +192,36 @@ calculate_pc_usage(Source) ->
   	 _ -> 0
     end.
 
+opcode(Op, B) ->
+    case Op of
+	0 -> case B of
+		 1 -> "JSR";
+		 _ -> "RESERVED"
+	     end;
+	1 -> "SET";
+	2 -> "ADD";
+	3 -> "SUB";
+	4 -> "MUL";
+	5 -> "DIV";
+	6 -> "MOD";
+	7 -> "SHL";
+	8 -> "SHR";
+	9 -> "AND";
+	10 -> "BOR";
+	11 -> "XOR";
+	12 -> "IFE";
+	13 -> "IFN";
+	14 -> "IFG";
+	15 -> "IFB"
+    end.
+	    
 %% When there are no micro operations to perform we need to fetch a new instruction and decode it into micro-operations
 cycle(Cpu, Ram, Cycles, [], CyclesLeft) ->
 %    debug("Cpu = ~p~nRam = ~p~n", [Cpu, Ram]),
 
     Instruction = array:get(Cpu#cpu.pc, Ram),
     <<B:6, A:6, Opcode:4>> = <<Instruction:16>>,
-    debug("~nOpcode = ~p A = ~p B = ~p~n", [Opcode, A, B]),
+    debug("~nOpcode = ~p A = ~p B = ~p~n", [opcode(Opcode, B), A, B]),
 
     case Cpu#cpu.skip of
 	false -> Micro_ops = case Opcode of
@@ -334,6 +357,7 @@ micro_op_cost(Operation) ->
 	free_nop -> 0;
 	pop_w -> 0;
 	dup -> 0;
+	drop -> 0;
 	set_target -> 0;
 	{ lit, _ } -> 0;
 	{ inc, _ } -> 0;
@@ -355,7 +379,7 @@ cycle(State) ->
     cycle(Cpu, Ram, Cycles, Operations, 1).
 
 cycle(State, Count) ->
-%    debug("~B ~p~n", [Count, A]),
+%    debug("~B ~p~n", [Count, State]),
     debug("---~B---~n", [Count]),
     if
 	Count > 0 -> cycle(cycle(State), Count - 1);
