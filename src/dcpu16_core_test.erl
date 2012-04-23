@@ -269,6 +269,27 @@ simple_divide() ->
     dcpu16_core:get_reg(ResultCPU, pc).
 
 
+simple_mod() ->
+    CPU = dcpu16_core:init(),
+    
+    ReadyCPU = dcpu16_core:ram(CPU, 0, [
+					16#a801, %% SET A, 10
+					16#8011, %% SET B, 0
+					16#0406, %% MOD A, B
+					16#800d, %% IFN A, 0
+					16#85c3, %% SUB PC, 1 ; test failed
+					16#a801, %% SET A, 10
+					16#9c06, %% MOD A, 7
+					16#8c0d, %% IFN A, 3
+					16#85c3, %% SUB PC, 1 ; test failed
+					16#85c3  %% SUB PC, 1 ; test passed
+				       ]),
+
+    ResultCPU = dcpu16_core:cycle(ReadyCPU, 17),
+    
+    dcpu16_core:get_reg(ResultCPU, pc).
+
+
 attempt(F) ->
     try
 	F()
@@ -290,5 +311,6 @@ basic_test_() ->
      ?_assertEqual(16#0013, attempt(fun() -> subtractions_and_overflow() end)),
      ?_assertEqual(16#0015, attempt(fun() -> compare_instructions() end)),
      ?_assertMatch({16#435c, 16#8970}, attempt(fun() -> simple_multiply() end)),
-     ?_assertEqual(16#0018, attempt(fun() -> simple_divide() end))
+     ?_assertEqual(16#0018, attempt(fun() -> simple_divide() end)),
+     ?_assertEqual(16#0009, attempt(fun() -> simple_mod() end))
     ].

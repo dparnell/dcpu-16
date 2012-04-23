@@ -325,6 +325,13 @@ cycle(Cpu, Ram, Cycles, [Micro_op|Micro_ops], CyclesLeft) ->
 						      { Cpu#cpu{ w = [Div band 16#ffff], overflow = Overflow  }, Ram, 1 }
 					     end;
 
+				   mod -> [B, A] = Cpu#cpu.w,
+					  case B of
+					      0 -> { Cpu#cpu{ w = [0] }, Ram, 1 };
+					      _ -> Mod = A rem B,
+						   { Cpu#cpu{ w = [Mod band 16#ffff] }, Ram, 1 }
+					  end;
+
 				   %% test operations
 				   ifn -> [B, A] = Cpu#cpu.w,
 					  { Cpu#cpu{ w = [], skip = A =:= B }, Ram, 1 };
