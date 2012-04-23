@@ -233,6 +233,40 @@ simple_multiply() ->
       dcpu16_core:get_reg(ResultCPU, overflow)
     }.
 
+simple_divide() ->
+    CPU = dcpu16_core:init(),
+    
+    ReadyCPU = dcpu16_core:ram(CPU, 0, [
+					16#7c01, %% SET A, 100
+					16#0064,
+					16#8005, %% DIV A, 0
+					16#800d, %% IFN A, 0
+					16#85c3, %% SUB PC, 1 ; test failed
+					16#81dd, %% IFN O, 0
+					16#85c3, %% SUB PC, 1 ; test failed
+					16#7c01, %% SET A, 100
+					16#0064,
+					16#8805, %% DIV A, 2
+					16#7c0d, %% IFN A, 50
+					16#0032,
+					16#85c3, %% SUB PC, 1 ; test failed
+					16#81dd, %% IFN O, 0
+					16#85c3, %% SUB PC, 1 ; test failed
+					16#7c01, %% SET A, 0x99
+					16#0099, 
+					16#7c05, %% DIV A, 0x00cc
+					16#00cc,
+					16#800d, %% IFN A, 0
+					16#85c3, %% SUB PC, 1 ; test failed
+					16#7ddd, %% IFN O, 0xc000
+					16#c000, 
+					16#85c3, %% SUB PC, 1 ; test failed
+					16#85c3  %% SUB PC, 1 ; test passed
+				       ]),
+
+    ResultCPU = dcpu16_core:cycle(ReadyCPU, 38),
+    
+    dcpu16_core:get_reg(ResultCPU, pc).
 
 
 attempt(F) ->
@@ -255,5 +289,6 @@ basic_test_() ->
      ?_assertEqual(16#0021, attempt(fun() -> test_stack_operations() end)),
      ?_assertEqual(16#0013, attempt(fun() -> subtractions_and_overflow() end)),
      ?_assertEqual(16#0015, attempt(fun() -> compare_instructions() end)),
-     ?_assertMatch({16#435c, 16#8970}, attempt(fun() -> simple_multiply() end))
+     ?_assertMatch({16#435c, 16#8970}, attempt(fun() -> simple_multiply() end)),
+     ?_assertEqual(16#0018, attempt(fun() -> simple_divide() end))
     ].

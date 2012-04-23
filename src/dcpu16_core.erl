@@ -317,6 +317,14 @@ cycle(Cpu, Ram, Cycles, [Micro_op|Micro_ops], CyclesLeft) ->
 					  Overflow = (Mul bsr 16) band 16#ffff,
 					  { Cpu#cpu{ w = [Mul band 16#ffff], overflow = Overflow  }, Ram, 1 };
 
+				   divide -> [B, A] = Cpu#cpu.w,
+					     case B of
+						 0 -> { Cpu#cpu{ w = [0], overflow = 0  }, Ram, 1 };
+						 _ -> Div = A div B,
+						      Overflow = ((A bsl 16) div B) band 16#ffff,
+						      { Cpu#cpu{ w = [Div band 16#ffff], overflow = Overflow  }, Ram, 1 }
+					     end;
+
 				   %% test operations
 				   ifn -> [B, A] = Cpu#cpu.w,
 					  { Cpu#cpu{ w = [], skip = A =:= B }, Ram, 1 };
