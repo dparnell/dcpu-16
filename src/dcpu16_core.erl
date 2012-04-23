@@ -237,10 +237,10 @@ cycle(Cpu, Ram, Cycles, [], CyclesLeft) ->
 				 9 -> [decode_read(A), set_target, decode_read(B), logical_and, decode_write(A)];
 				 10 -> [decode_read(A), set_target, decode_read(B), logical_or, decode_write(A)];
 				 11 -> [decode_read(A), set_target, decode_read(B), logical_xor, decode_write(A)];
-				 12 -> [decode_read(A), set_target, decode_read(B), ife];
-				 13 -> [decode_read(A), set_target, decode_read(B), ifn];
-				 14 -> [decode_read(A), set_target, decode_read(B), ifg];
-				 15 -> [decode_read(A), set_target, decode_read(B), ifb];
+				 12 -> [decode_read(A), set_target, decode_read(B), nop, ife];
+				 13 -> [decode_read(A), set_target, decode_read(B), nop, ifn];
+				 14 -> [decode_read(A), set_target, decode_read(B), nop, ifg];
+				 15 -> [decode_read(A), set_target, decode_read(B), nop, ifb];
 				 _ -> error
 			     end,
 
@@ -279,9 +279,6 @@ cycle(Cpu, Ram, Cycles, [Micro_op|Micro_ops], CyclesLeft) ->
 						   { Cpu#cpu{w = lists:append([Result], T)}, Ram, 0 };
 				   
 				   { lit, Value } -> { Cpu#cpu{w = lists:append([Value], Cpu#cpu.w)}, Ram, 0 };
-
-				   read_next_literal -> Literal = array:get(Cpu#cpu.pc, Ram),
-							{ Cpu#cpu{ pc = Cpu#cpu.pc + 1, w = lists:append([Literal], Cpu#cpu.w)}, Ram, 1 };
 
 				   { read_reg, Reg } -> { Cpu#cpu{w = lists:append([reg(Cpu, Reg)], Cpu#cpu.w)}, Ram, 0};
 
