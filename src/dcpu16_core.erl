@@ -159,7 +159,7 @@ decode_write(Destination) ->
 	20 -> { write_ind, target };
 	21 -> { write_ind, target };
 	22 -> { write_ind, target };
-	23 -> { write_int, target };
+	23 -> { write_ind, target };
 	24 -> { write_ind, target }; %% POP
 	25 -> { write_ind, target }; %% PEEK
 	26 -> { write_ind, target }; %% PUSH
