@@ -349,6 +349,14 @@ execute_micro_op(logical_and, Cpu, Ram) -> [B, A] = Cpu#cpu.w,
 					   Value = A band B,
 					   { Cpu#cpu{ w = [Value] }, Ram, 1 };
 
+execute_micro_op(logical_or, Cpu, Ram) -> [B, A] = Cpu#cpu.w,
+					  Value = A bor B,
+					  { Cpu#cpu{ w = [Value] }, Ram, 1 };
+
+execute_micro_op(logical_xor, Cpu, Ram) -> [B, A] = Cpu#cpu.w,
+					   Value = A bxor B,
+					   { Cpu#cpu{ w = [Value] }, Ram, 1 };
+
 %% test operations
 execute_micro_op(ifn, Cpu, Ram) -> [B, A] = Cpu#cpu.w,
 				   { Cpu#cpu{ w = [], skip = A =:= B }, Ram, 1 };

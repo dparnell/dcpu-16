@@ -355,6 +355,42 @@ simple_and() ->
     dcpu16_core:get_reg(ResultCPU, pc).
 
 
+simple_bor() ->
+    CPU = dcpu16_core:init(),
+    
+    ReadyCPU = dcpu16_core:ram(CPU, 0, [
+					16#7c01, %% SET A, 0x1200
+					16#1200,
+					16#7c0a, %% BOR A, 0x0034
+					16#0034,
+					16#7c0d, %% IFN A, 0x1234
+					16#1234,
+					16#85c3, %% SUB PC, 1 ; test failed
+					16#85c3  %% SUB PC, 1 ; test passed
+				       ]),
+
+    ResultCPU = dcpu16_core:cycle(ReadyCPU, 10),
+    
+    dcpu16_core:get_reg(ResultCPU, pc).
+
+simple_xor() ->
+    CPU = dcpu16_core:init(),
+    
+    ReadyCPU = dcpu16_core:ram(CPU, 0, [
+					16#7c01, %% SET A, 0xFEED
+					16#feed,
+					16#7c0b, %% XOR A, 0xBEEF
+					16#beef,
+					16#7c0d, %% IFN A, 0x4002
+					16#4002,
+					16#85c3, %% SUB PC, 1 ; test failed
+					16#85c3  %% SUB PC, 1 ; test passed
+				       ]),
+
+    ResultCPU = dcpu16_core:cycle(ReadyCPU, 10),
+    
+    dcpu16_core:get_reg(ResultCPU, pc).
+
 attempt(F) ->
     try
 	F()
@@ -380,5 +416,7 @@ basic_test_() ->
      ?_assertEqual(16#0009, attempt(fun() -> simple_mod() end)),
      ?_assertEqual(16#000c, attempt(fun() -> simple_shl() end)),
      ?_assertEqual(16#000c, attempt(fun() -> simple_shr() end)),
-     ?_assertEqual(16#0007, attempt(fun() -> simple_and() end))
+     ?_assertEqual(16#0007, attempt(fun() -> simple_and() end)),
+     ?_assertEqual(16#0007, attempt(fun() -> simple_bor() end)),
+     ?_assertEqual(16#0007, attempt(fun() -> simple_xor() end))
     ].

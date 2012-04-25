@@ -14,6 +14,8 @@ JSR test_compare
 JSR test_shl
 JSR test_shr
 JSR test_and
+JSR test_bor
+JSR test_xor
 
 ; YAY, ALL TESTS PASSED!
 :success sub PC, 1
@@ -293,6 +295,24 @@ SET PC, POP
 SET A, 0x1234
 AND A, 0x5432
 IFN A, 0x1030
+SUB PC, 1 ; test failed
+
+; success
+SET PC, POP
+
+:test_bor
+SET A, 0x1200
+BOR A, 0x0034
+IFN A, 0x1234
+SUB PC, 1 ; test failed
+
+; success
+SET PC, POP
+
+:test_xor
+SET A, 0xfeed
+BOR A, 0xbeef
+IFN A, 0x4002
 SUB PC, 1 ; test failed
 
 ; success
