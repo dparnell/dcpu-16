@@ -11,6 +11,7 @@ JSR test_div
 JSR test_mod
 JSR test_stack
 JSR test_compare
+JSR test_shl
 
 ; YAY, ALL TESTS PASSED!
 :success set PC, success
@@ -257,3 +258,18 @@ SUB PC, 1 ; test failed
 
 ; success
 SET PC, POP
+
+:test_shl
+SET A, 0x1234
+SHL A, 1
+IFN A, 0x2468
+SUB PC, 1 ; test failed
+SHL A, 16
+IFN A, 0
+SUB PC, 1 ; test failed
+IFN O, 0x2468
+SUB PC, 1 ; test failed
+
+; success
+SET PC, POP
+

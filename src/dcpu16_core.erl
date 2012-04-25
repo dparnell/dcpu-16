@@ -335,6 +335,11 @@ execute_micro_op(mod, Cpu, Ram) -> [B, A] = Cpu#cpu.w,
 						   { Cpu#cpu{ w = [Mod band 16#ffff] }, Ram, 1 }
 				   end;
 
+execute_micro_op(shl, Cpu, Ram) -> [B, A] = Cpu#cpu.w,
+				   Value = A bsl B,
+				   Overflow = (Value bsr 16) band 16#ffff,
+				   { Cpu#cpu{ w = [Value band 16#ffff], overflow = Overflow  }, Ram, 1 };
+
 %% test operations
 execute_micro_op(ifn, Cpu, Ram) -> [B, A] = Cpu#cpu.w,
 				   { Cpu#cpu{ w = [], skip = A =:= B }, Ram, 1 };
