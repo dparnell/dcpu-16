@@ -418,5 +418,5 @@ basic_test_() ->
      ?_assertEqual(16#000c, attempt(fun() -> simple_shr() end)),
      ?_assertEqual(16#0007, attempt(fun() -> simple_and() end)),
      ?_assertEqual(16#0007, attempt(fun() -> simple_bor() end)),
-     ?_assertEqual(16#0008, attempt(fun() -> simple_xor() end))
+     ?_assertEqual(16#0007, attempt(fun() -> simple_xor() end))
     ].
