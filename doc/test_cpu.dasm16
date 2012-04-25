@@ -12,9 +12,10 @@ JSR test_mod
 JSR test_stack
 JSR test_compare
 JSR test_shl
+JSR test_shr
 
 ; YAY, ALL TESTS PASSED!
-:success set PC, success
+:success sub PC, 1
 
 :test_set
 ; exercise the set instruction
@@ -268,6 +269,21 @@ SHL A, 16
 IFN A, 0
 SUB PC, 1 ; test failed
 IFN O, 0x2468
+SUB PC, 1 ; test failed
+
+; success
+SET PC, POP
+
+
+:test_shr
+SET A, 0x1234
+SHR A, 1
+IFN A, 0x091a
+SUB PC, 1 ; test failed
+SHR A, 16
+IFN A, 0
+SUB PC, 1 ; test failed
+IFN O, 0x091a
 SUB PC, 1 ; test failed
 
 ; success
