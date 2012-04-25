@@ -336,6 +336,24 @@ simple_shr() ->
     
     dcpu16_core:get_reg(ResultCPU, pc).
 
+simple_and() ->
+    CPU = dcpu16_core:init(),
+    
+    ReadyCPU = dcpu16_core:ram(CPU, 0, [
+					16#7c01, %% SET A, 0x1234
+					16#1234, 
+					16#7c09, %% AND A, 0x5432
+					16#5432,
+					16#7c0d, %% IFN A, 0x1030
+					16#1030,
+					16#85c3, %% SUB PC, 1 ; test failed
+					16#85c3  %% SUB PC, 1 ; test passed
+				       ]),
+
+    ResultCPU = dcpu16_core:cycle(ReadyCPU, 10),
+    
+    dcpu16_core:get_reg(ResultCPU, pc).
+
 
 attempt(F) ->
     try
@@ -361,5 +379,6 @@ basic_test_() ->
      ?_assertEqual(16#0018, attempt(fun() -> simple_divide() end)),
      ?_assertEqual(16#0009, attempt(fun() -> simple_mod() end)),
      ?_assertEqual(16#000c, attempt(fun() -> simple_shl() end)),
-     ?_assertEqual(16#000c, attempt(fun() -> simple_shr() end))
+     ?_assertEqual(16#000c, attempt(fun() -> simple_shr() end)),
+     ?_assertEqual(16#0007, attempt(fun() -> simple_and() end))
     ].
