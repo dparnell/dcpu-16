@@ -167,11 +167,8 @@ decode_write(2#011111) -> { write_ind, target }; % next word (literal)
 decode_write(_) -> drop.
 
 %% decode a non-basic opcode
-decode_nonbasic_opcode(Opcode, A) ->
-    case Opcode of
-	1 -> [decode_read(A), nop, jsr];
-	_ -> [reserved]
-    end.
+decode_nonbasic_opcode(1, A) -> [decode_read(A), nop, jsr];
+decode_nonbasic_opcode(_, _) -> reserved.
 
 opcode(Op, B) ->
     case Op of
