@@ -4,13 +4,15 @@
 -author("me@danielparnell.com").
 -include_lib("eunit/include/eunit.hrl").
 
+-import(test_helpers, [attempt/1]).
+
 simple_set() ->
     CPU = dcpu16_core:init(),
     
-    ReadyCPU = dcpu16_core:ram(CPU, 0, [
-					16#7c01, %% SET A, 0x1234
-					16#1234
-				       ]),
+    ReadyCPU = dcpu16_core:ram(CPU, 0, dcpu16_asm:assemble([ 
+							     { set, a, 16#1234 }
+							   ])
+			      ),
     
     ResultCPU = dcpu16_core:cycle(ReadyCPU, 2),
     
@@ -390,15 +392,6 @@ simple_xor() ->
     ResultCPU = dcpu16_core:cycle(ReadyCPU, 10),
     
     dcpu16_core:get_reg(ResultCPU, pc).
-
-attempt(F) ->
-    try
-	F()
-    catch
-	Type:X ->
-	    io:format("~p~n", [{Type, X, erlang:get_stacktrace()}]),
-	    ?assert(unhandled_exception)
-    end.
 
 basic_test_() ->    
     [
