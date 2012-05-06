@@ -21,13 +21,12 @@ simple_set() ->
 simple_add() ->
     CPU = dcpu16_core:init(),
     
-    ReadyCPU = dcpu16_core:ram(CPU, 0, [
-					16#7c01, %% SET A, 0xBE00
-					16#be00,
-					16#7c11, %% SET B, 0x00EF
-					16#00ef,
-					16#0402  %% ADD A, B
-				       ]),
+    ReadyCPU = dcpu16_core:ram(CPU, 0, dcpu16_asm:assemble([
+							    { set, a, 16#BE00 },
+							    { set, b, 16#00EF },
+							    { add, a, b }
+							   ])
+			      ),
     
     ResultCPU = dcpu16_core:cycle(ReadyCPU, 6),
     

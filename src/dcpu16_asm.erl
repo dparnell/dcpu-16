@@ -51,7 +51,8 @@ encode_read(A) when A < -1 -> 31;
 encode_read(A) when A > 30 -> 31;
 encode_read(A) -> 33 + A. %% -1 to 30, this works because 33 + -1 =:= 32
 
-encode_write(a) -> 0.
+encode_write(a) -> 0;
+encode_write(b) -> 1.
 
 encode_instruction(Opcode, A, B) ->
     Read = encode_read(A),
@@ -72,5 +73,8 @@ encode_next(_) ->
     nothing.
 
 process_instruction({ set, B, A }, Symbols) ->
-    {[encode_instruction(1, A, B), encode_next(A), encode_next(B)], Symbols}.
+    {[encode_instruction(1, A, B), encode_next(A), encode_next(B)], Symbols};
+
+process_instruction({ add, B, A }, Symbols) ->
+    {[encode_instruction(2, A, B), encode_next(A), encode_next(B)], Symbols}.
 

@@ -2,7 +2,7 @@
 %%% @author  <Daniel Parnell>
 %%% @copyright (C) 2012, 
 %%% @doc
-%%%     DCPU16 core
+%%%     DCPU16 core implementing the DCPU 1.7 spec as defined here http://pastebin.com/raw.php?i=Q4JvQvnM
 %%% @end
 %%% Created : 8 Apr 2012 by  <Daniel Parnell>
 %%%-------------------------------------------------------------------
