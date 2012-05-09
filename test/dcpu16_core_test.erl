@@ -27,7 +27,7 @@ simple_add() ->
 							    { add, a, b }
 							   ])
 			      ),
-    
+
     ResultCPU = dcpu16_core:cycle(ReadyCPU, 6),
     
     dcpu16_core:get_reg(ResultCPU, a).
@@ -35,31 +35,29 @@ simple_add() ->
 simple_subtraction() ->
     CPU = dcpu16_core:init(),
     
-    ReadyCPU = dcpu16_core:ram(CPU, 0, [
-					16#7c01, %% SET A, 0xBEEF
-					16#beef, 
-					16#7c11, %% SET B, 0xFEED
-					16#feed,
-					16#0403  %% SUB A, B
-				       ]),
-    
+    ReadyCPU = dcpu16_core:ram(CPU, 0, dcpu16_asm:assemble([
+							    { set, a, 16#BEEF },
+							    { set, b, 16#FEED },
+							    { sub, a, b }
+							  ])
+			      ),
+
     ResultCPU = dcpu16_core:cycle(ReadyCPU, 6),
     
     {
       dcpu16_core:get_reg(ResultCPU, a),
-      dcpu16_core:get_reg(ResultCPU, overflow)
+      dcpu16_core:get_reg(ResultCPU, ex)
     }.
 
 indirect_register_write() ->
     CPU = dcpu16_core:init(),
     
-    ReadyCPU = dcpu16_core:ram(CPU, 0, [
-					16#7c01, %% SET A, 0x1234
-					16#1234,
-					16#7c11, %% SET B, 0x8000
-					16#8000,
-					16#0091  %% SET [B], A
-				       ]),
+    ReadyCPU = dcpu16_core:ram(CPU, 0, dcpu16_asm:assemble([
+							    { set, a, 16#1234 },
+							    { set, b, 16#8000 },
+							    { set, [b], a }
+							   ])
+			      ),
     
     ResultCPU = dcpu16_core:cycle(ReadyCPU, 5),
     
@@ -68,15 +66,12 @@ indirect_register_write() ->
 complicated_subtraction() ->
     CPU = dcpu16_core:init(),
     
-    ReadyCPU = dcpu16_core:ram(CPU, 0, [
-					16#7c01, %% SET A, 0x30
-					16#0030, 
-					16#7de1, %% SET [0x1000], 0x20
-					16#1000,
-					16#0020,
-					16#7803, %% SUB A, [0x1000]
-					16#1000
-				       ]),
+    ReadyCPU = dcpu16_core:ram(CPU, 0, dcpu16_asm:assemble([
+							    { set, a, 16#30 },
+							    { set, [16#1000], 16#20 },
+							    { sub, a, [16#1000] }
+							   ])
+			      ),
     
     ResultCPU = dcpu16_core:cycle(ReadyCPU, 8),
     
@@ -85,19 +80,19 @@ complicated_subtraction() ->
 test_subroutines() ->
     CPU = dcpu16_core:init(),
     
-    ReadyCPU = dcpu16_core:ram(CPU, 0, [
-					16#8001, %% SET A, 0
-					16#7c10, %% JSR FOO
-					16#0006,
-					16#840d, %% IFN A, 1
-					16#85c3, %% SUB PC, 1 ; failed 
-					16#85c3, %% SUB PC, 1 ; success
-					         %% :foo
-					16#8401, %% SET A, 1
-					16#61c1  %% SET PC, POP
-				       ]),
-
-    ResultCPU = dcpu16_core:cycle(ReadyCPU, 11),
+    ReadyCPU = dcpu16_core:ram(CPU, 0, dcpu16_asm:assemble([
+							    { set, a, 0 },
+							    { jsr, 5 },
+							    { ifn, a, 1},
+							    { sub, pc, 1 }, %% failed
+							    { sub, pc, 1 }, %% success
+							    % subroutine starts here
+							    { set, a, 1 },
+							    { set, pc, pop }
+							   ])
+			      ),
+			       
+    ResultCPU = dcpu16_core:cycle(ReadyCPU, 10),
     
     {
       dcpu16_core:get_reg(ResultCPU, a),
@@ -231,7 +226,7 @@ simple_multiply() ->
     
     {
       dcpu16_core:get_reg(ResultCPU, a),
-      dcpu16_core:get_reg(ResultCPU, overflow)
+      dcpu16_core:get_reg(ResultCPU, ex)
     }.
 
 simple_divide() ->
@@ -399,7 +394,7 @@ basic_test_() ->
      ?_assertMatch({16#c002, 16#ffff}, attempt(fun() -> simple_subtraction() end)),
      ?_assertEqual(16#1234, attempt(fun() -> indirect_register_write() end)),
      ?_assertEqual(16#0010, attempt(fun() -> complicated_subtraction() end)),
-     ?_assertMatch({16#0001, 16#0005}, attempt(fun() -> test_subroutines() end)),
+     ?_assertMatch({16#0001, 16#0004}, attempt(fun() -> test_subroutines() end)),
      ?_assertEqual(16#0021, attempt(fun() -> test_stack_operations() end)),
      ?_assertEqual(16#0013, attempt(fun() -> subtractions_and_overflow() end)),
      ?_assertEqual(16#0015, attempt(fun() -> compare_instructions() end)),

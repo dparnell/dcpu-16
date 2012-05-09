@@ -12,7 +12,7 @@
 -export([init/0, ram/2, ram/3, get_reg/2, set_reg/3, cycle/1, cycle/2, print/1]).
 
 %% everything about the CPU is in the cpu record
--record(cpu, { a = 0, b = 0, c = 0, x = 0, y = 0, z = 0, i = 0, j = 0, pc = 0, sp = 0, overflow = 0, skip = false, w = [], target = none, pointer = none }).
+-record(cpu, { a = 0, b = 0, c = 0, x = 0, y = 0, z = 0, i = 0, j = 0, pc = 0, sp = 0, ex = 0, ia = 0, skip = false, w = [], target = none, pointer = none }).
 
 %% Set up a new DCPU-16 instance with everything we need
 init() ->
@@ -60,7 +60,8 @@ reg(Cpu, Reg) ->
 	j -> Cpu#cpu.j;
 	pc -> Cpu#cpu.pc;
 	sp -> Cpu#cpu.sp;
-	overflow -> Cpu#cpu.overflow;
+	ex -> Cpu#cpu.ex;
+	ia -> Cpu#cpu.ia;
 	skip -> Cpu#cpu.skip;
 	target -> Cpu#cpu.target;
 	pointer -> Cpu#cpu.pointer
@@ -79,7 +80,8 @@ reg(Cpu, Reg, Value) ->
 	j -> Cpu#cpu{j = Value};
 	pc -> Cpu#cpu{pc = Value};
 	sp -> Cpu#cpu{sp = Value};
-	overflow -> Cpu#cpu{overflow = Value};
+	ex -> Cpu#cpu{ex = Value};
+	ia -> Cpu#cpu{ia = Value};
 	skip -> Cpu#cpu{skip = Value};
 	target -> Cpu#cpu{target = Value};
 	pointer -> Cpu#cpu{pointer = Value}		      
@@ -107,33 +109,29 @@ reg(2#110)->i;
 reg(2#111)->j.
 
 %% produce the micro operations for a read into the working stack
-decode_read(N) when N=<2#00111 -> { read_reg, reg(N) };
-decode_read(N) when N=<2#01111 -> { read_ind, reg(N bxor 2#01000) };
-decode_read(N) when N=<2#10111 -> decode_read_next_ind(reg(N bxor 2#10000));
-decode_read(2#011000) -> % POP  == [sp++]
+decode_read(N) when N=<16#07 -> { read_reg, reg(N) };
+decode_read(N) when N=<16#0f -> { read_ind, reg(N bxor 2#01000) };
+decode_read(N) when N=<16#17 -> decode_read_next_ind(reg(N bxor 2#10000));
+decode_read(16#018) -> % POP  == [sp++]
     [ 
       {read_reg, sp},
       {write_reg, pointer},
       {read_ind, sp},
       {inc, sp}
     ]; 
-decode_read(2#011001) -> % PEEK == [sp]
+decode_read(16#019) -> % PEEK == [sp]
     [ 
       {read_reg, sp},
       {write_reg, pointer},
       {read_ind, sp}
     ]; 
-decode_read(2#011010) ->  % PUSH == [--sp]
-    [ 
-      {dec, sp},
-      {read_reg, sp},
-      {write_reg, pointer},
-      {read_ind, sp} 
-    ];
-decode_read(2#011011) -> { read_reg, sp };
-decode_read(2#011100) -> { read_reg, pc };
-decode_read(2#011101) -> { read_reg, overflow };
-decode_read(2#011110) -> % [next word]
+decode_read(16#1a) ->  % [sp + next] / PICK n
+    decode_read_next_ind(sp);
+
+decode_read(16#1b) -> { read_reg, sp };
+decode_read(16#1c) -> { read_reg, pc };
+decode_read(16#1d) -> { read_reg, ex };
+decode_read(16#1e) -> % [next word]
     [ 
       nop,
       {read_ind, pc},
@@ -141,7 +139,7 @@ decode_read(2#011110) -> % [next word]
       {write_reg, pointer},
       {read_ind, pointer}
     ]; 
-decode_read(2#011111) -> % next word (literal)
+decode_read(16#1f) -> % next word (literal)
     [ 
       nop,
       {read_reg, pc},
@@ -149,66 +147,83 @@ decode_read(2#011111) -> % next word (literal)
       {write_reg, pointer},
       {read_ind, pointer} 
     ]; 
-decode_read(N) -> {lit, N bxor 2#100000}.
+decode_read(N) -> {lit, (N bxor 2#100000)-1}.
 
 %% produce the micro operations for a write from the working stack
 
-decode_write(N) when N=<2#00111 -> { write_reg, reg(N) };
-decode_write(N) when N=<2#01111 -> { write_ind, reg(N bxor 2#01000) };
-decode_write(N) when N=<2#10111 -> { write_ind, target};
-decode_write(2#011000) -> { write_ind, target }; % POP  == [sp++]
-decode_write(2#011001) -> { write_ind, target }; % PEEK == [sp]
-decode_write(2#011010) -> { write_ind, target }; % PUSH == [--sp]
-decode_write(2#011011) -> { write_reg, sp };
-decode_write(2#011100) -> { write_reg, pc };
-decode_write(2#011101) -> { write_reg, overflow };
-decode_write(2#011110) -> { write_ind, target }; % [next word]
-decode_write(2#011111) -> { write_ind, target }; % next word (literal)
+decode_write(N) when N=<16#07 -> { write_reg, reg(N) };
+decode_write(N) when N=<16#0f -> { write_ind, reg(N bxor 2#01000) };
+decode_write(N) when N=<16#17 -> { write_ind, target};
+decode_write(16#18) -> { write_ind, target }; % POP  == [sp++]
+decode_write(16#19) -> { write_ind, target }; % PEEK == [sp]
+decode_write(16#1a) -> { write_ind, target }; % PUSH == [--sp]
+decode_write(16#1b) -> { write_reg, sp };
+decode_write(16#1c) -> { write_reg, pc };
+decode_write(16#1d) -> { write_reg, ex };
+decode_write(16#1e) -> { write_ind, target }; % [next word]
+decode_write(16#1f) -> { write_ind, target }; % next word (literal)
 decode_write(_) -> drop.
 
 %% decode a non-basic opcode
 decode_nonbasic_opcode(1, A) -> [decode_read(A), nop, jsr];
 decode_nonbasic_opcode(_, _) -> reserved.
 
-opcode(Op, B) ->
+opcode(Op, A) ->
     case Op of
-	0 -> case B of
-		 1 -> "JSR";
-		 _ -> "RESERVED"
-	     end;
-	1 -> "SET";
-	2 -> "ADD";
-	3 -> "SUB";
-	4 -> "MUL";
-	5 -> "DIV";
-	6 -> "MOD";
-	7 -> "SHL";
-	8 -> "SHR";
-	9 -> "AND";
-	10 -> "BOR";
-	11 -> "XOR";
-	12 -> "IFE";
-	13 -> "IFN";
-	14 -> "IFG";
-	15 -> "IFB"
+	16#00 -> case A of
+		     1 -> "JSR";
+		     _ -> "RESERVED"
+		 end;
+	16#01 -> "SET";
+	16#02 -> "ADD";
+	16#03 -> "SUB";
+	16#04 -> "MUL";
+	16#05 -> "MLI";
+	16#06 -> "DIV";
+	16#07 -> "DVI";
+	16#08 -> "MOD";
+	16#09 -> "MDI";
+	16#0a -> "AND";
+	16#0b -> "BOR";
+	16#0c -> "XOR";
+	16#0d -> "SHR";
+	16#0e -> "ASR";
+	16#0f -> "SHL";
+	16#10 -> "IFB";
+	16#11 -> "IFC";
+	16#12 -> "IFE";
+	16#13 -> "IFN";
+	16#14 -> "IFG";
+	16#15 -> "IFA";
+	16#16 -> "IFL";
+	16#17 -> "IFU";
+	_ -> Op
     end.
 
-decode_instruction(2#0000, A, B) -> decode_nonbasic_opcode(A, B);
-decode_instruction(2#0001, A, B) -> [decode_read(A), drop, set_target, decode_read(B), nop, decode_write(A)];
-decode_instruction(2#0010, A, B) -> [decode_read(A), set_target, decode_read(B), nop, add, decode_write(A)];
-decode_instruction(2#0011, A, B) -> [decode_read(A), set_target, decode_read(B), nop, sub, decode_write(A)];
-decode_instruction(2#0100, A, B) -> [decode_read(A), set_target, decode_read(B), nop, mul, decode_write(A)];
-decode_instruction(2#0101, A, B) -> [decode_read(A), set_target, decode_read(B), nop, nop, divide, decode_write(A)];
-decode_instruction(2#0110, A, B) -> [decode_read(A), set_target, decode_read(B), nop, nop, mod, decode_write(A)];
-decode_instruction(2#0111, A, B) -> [decode_read(A), set_target, decode_read(B), nop, shl, decode_write(A)];
-decode_instruction(2#1000, A, B) -> [decode_read(A), set_target, decode_read(B), nop, shr, decode_write(A)];
-decode_instruction(2#1001, A, B) -> [decode_read(A), set_target, decode_read(B), logical_and, decode_write(A)];
-decode_instruction(2#1010, A, B) -> [decode_read(A), set_target, decode_read(B), logical_or, decode_write(A)];
-decode_instruction(2#1011, A, B) -> [decode_read(A), set_target, decode_read(B), logical_xor, decode_write(A)];
-decode_instruction(2#1100, A, B) -> [decode_read(A), set_target, decode_read(B), nop, ife];
-decode_instruction(2#1101, A, B) -> [decode_read(A), set_target, decode_read(B), nop, ifn];
-decode_instruction(2#1110, A, B) -> [decode_read(A), set_target, decode_read(B), nop, ifg];
-decode_instruction(2#1111, A, B) -> [decode_read(A), set_target, decode_read(B), nop, ifb].
+decode_instruction(16#00, A, B) -> decode_nonbasic_opcode(B, A);
+decode_instruction(16#01, A, B) -> [decode_read(A), nop, decode_read(B), drop, set_target, decode_write(B)];
+decode_instruction(16#02, A, B) -> [decode_read(A), decode_read(B), set_target, nop, add, decode_write(B)];
+decode_instruction(16#03, A, B) -> [decode_read(A), decode_read(B), set_target, nop, sub, decode_write(B)];
+decode_instruction(16#04, A, B) -> [decode_read(A), decode_read(B), set_target, nop, mul, decode_write(B)];
+decode_instruction(16#05, A, B) -> [decode_read(A), decode_read(B), set_target, nop, mli, decode_write(B)];
+decode_instruction(16#06, A, B) -> [decode_read(A), decode_read(B), set_target, nop, nop, divide, decode_write(B)];
+decode_instruction(16#07, A, B) -> [decode_read(A), decode_read(B), set_target, nop, nop, dvi, decode_write(B)];
+decode_instruction(16#08, A, B) -> [decode_read(A), decode_read(B), set_target, nop, nop, mod, decode_write(B)];
+decode_instruction(16#09, A, B) -> [decode_read(A), decode_read(B), set_target, nop, nop, mdi, decode_write(B)];
+decode_instruction(16#0a, A, B) -> [decode_read(A), decode_read(B), set_target, logical_and, decode_write(B)];
+decode_instruction(16#0b, A, B) -> [decode_read(A), decode_read(B), set_target, logical_or, decode_write(B)];
+decode_instruction(16#0c, A, B) -> [decode_read(A), decode_read(B), set_target, logical_xor, decode_write(B)];
+decode_instruction(16#0d, A, B) -> [decode_read(A), decode_read(B), set_target, nop, shr, decode_write(B)];
+decode_instruction(16#0e, A, B) -> [decode_read(A), decode_read(B), set_target, nop, asr, decode_write(B)];
+decode_instruction(16#0f, A, B) -> [decode_read(A), decode_read(B), set_target, nop, shl, decode_write(B)];
+decode_instruction(16#10, A, B) -> [decode_read(A), decode_read(B), nop, ifb];
+decode_instruction(16#11, A, B) -> [decode_read(A), decode_read(B), nop, ifc];
+decode_instruction(16#12, A, B) -> [decode_read(A), decode_read(B), nop, ife];
+decode_instruction(16#13, A, B) -> [decode_read(A), decode_read(B), nop, ifn];
+decode_instruction(16#14, A, B) -> [decode_read(A), decode_read(B), nop, ifg];
+decode_instruction(16#15, A, B) -> [decode_read(A), decode_read(B), nop, ifa];
+decode_instruction(16#16, A, B) -> [decode_read(A), decode_read(B), nop, ifl];
+decode_instruction(16#17, A, B) -> [decode_read(A), decode_read(B), nop, ifu].
 
 operand_size(Source) ->
     case Source of
@@ -232,7 +247,7 @@ cycle(Cpu, Ram, Cycles, [], CyclesLeft) ->
 %    debug("Cpu = ~p~nRam = ~p~n", [Cpu, Ram]),
 
     Instruction = array:get(Cpu#cpu.pc, Ram),
-    <<B:6, A:6, Opcode:4>> = <<Instruction:16>>,
+    <<A:6, B:5, Opcode:5>> = <<Instruction:16>>,
     debug("~nOpcode = ~p A = ~p B = ~p~n", [opcode(Opcode, B), A, B]),
 
     case Cpu#cpu.skip of
@@ -303,69 +318,69 @@ execute_micro_op({ dec, Reg }, Cpu, Ram) -> Value = (reg(Cpu, Reg) - 1) band 16#
 
 %% aritmetic operations
 execute_micro_op(add, Cpu, Ram) -> [B, A] = Cpu#cpu.w,
-				   Sum = A + B,
+				   Sum = B + A,
 				   Overflow = (Sum band 16#10000) bsr 16,
-				   { Cpu#cpu{ w = [Sum band 16#ffff], overflow = Overflow  }, Ram, 1 } ;
+				   { Cpu#cpu{ w = [Sum band 16#ffff], ex = Overflow  }, Ram, 1 } ;
 
 execute_micro_op(sub, Cpu, Ram) -> [B, A] = Cpu#cpu.w,
-				   Sub = A - B,
+				   Sub = B - A,
 				   Overflow = (Sub band 16#ffff0000) bsr 16,
-				   { Cpu#cpu{ w = [Sub band 16#ffff], overflow = Overflow  }, Ram, 1 };
+				   { Cpu#cpu{ w = [Sub band 16#ffff], ex = Overflow  }, Ram, 1 };
 				   
 execute_micro_op(mul, Cpu, Ram) -> [B, A] = Cpu#cpu.w,
-				   Mul = A * B,
+				   Mul = B * A,
 				   Overflow = (Mul bsr 16) band 16#ffff,
-				   { Cpu#cpu{ w = [Mul band 16#ffff], overflow = Overflow  }, Ram, 1 };
+				   { Cpu#cpu{ w = [Mul band 16#ffff], ex = Overflow  }, Ram, 1 };
 
 execute_micro_op(divide, Cpu, Ram) -> [B, A] = Cpu#cpu.w,
 				      case B of
-					  0 -> { Cpu#cpu{ w = [0], overflow = 0  }, Ram, 1 };
-					  _ -> Div = A div B,
+					  0 -> { Cpu#cpu{ w = [0], ex = 0  }, Ram, 1 };
+					  _ -> Div = B div A,
 					       Overflow = ((A bsl 16) div B) band 16#ffff,
-					       { Cpu#cpu{ w = [Div band 16#ffff], overflow = Overflow  }, Ram, 1 }
+					       { Cpu#cpu{ w = [Div band 16#ffff], ex = Overflow  }, Ram, 1 }
 				      end;
 
 execute_micro_op(mod, Cpu, Ram) -> [B, A] = Cpu#cpu.w,
 				   case B of
 				       0 -> { Cpu#cpu{ w = [0] }, Ram, 1 };
-				       _ -> Mod = A rem B,
+				       _ -> Mod = B rem A,
 						   { Cpu#cpu{ w = [Mod band 16#ffff] }, Ram, 1 }
 				   end;
 
 execute_micro_op(shl, Cpu, Ram) -> [B, A] = Cpu#cpu.w,
-				   Value = A bsl B,
+				   Value = B bsl A,
 				   Overflow = (Value bsr 16) band 16#ffff,
-				   { Cpu#cpu{ w = [Value band 16#ffff], overflow = Overflow  }, Ram, 1 };
+				   { Cpu#cpu{ w = [Value band 16#ffff], ex = Overflow  }, Ram, 1 };
 
 execute_micro_op(shr, Cpu, Ram) -> [B, A] = Cpu#cpu.w,
-				   Value = A bsr B,
+				   Value = B bsr A,
 				   Overflow = ((A bsl 16) bsr B) band 16#ffff,
-				   { Cpu#cpu{ w = [Value band 16#ffff], overflow = Overflow  }, Ram, 1 };
+				   { Cpu#cpu{ w = [Value band 16#ffff], ex = Overflow  }, Ram, 1 };
 
 execute_micro_op(logical_and, Cpu, Ram) -> [B, A] = Cpu#cpu.w,
-					   Value = A band B,
+					   Value = B band A,
 					   { Cpu#cpu{ w = [Value] }, Ram, 1 };
 
 execute_micro_op(logical_or, Cpu, Ram) -> [B, A] = Cpu#cpu.w,
-					  Value = A bor B,
+					  Value = B bor A,
 					  { Cpu#cpu{ w = [Value] }, Ram, 1 };
 
 execute_micro_op(logical_xor, Cpu, Ram) -> [B, A] = Cpu#cpu.w,
-					   Value = A bxor B,
+					   Value = B bxor A,
 					   { Cpu#cpu{ w = [Value] }, Ram, 1 };
 
 %% test operations
 execute_micro_op(ifn, Cpu, Ram) -> [B, A] = Cpu#cpu.w,
-				   { Cpu#cpu{ w = [], skip = A =:= B }, Ram, 1 };
+				   { Cpu#cpu{ w = [], skip = B =:= A }, Ram, 1 };
 
 execute_micro_op(ife, Cpu, Ram) -> [B, A] = Cpu#cpu.w,
-				   { Cpu#cpu{ w = [], skip = not(A =:= B) }, Ram, 1 };
+				   { Cpu#cpu{ w = [], skip = not(B =:= A) }, Ram, 1 };
 
 execute_micro_op(ifg, Cpu, Ram) -> [B, A] = Cpu#cpu.w,
-				   { Cpu#cpu{ w = [], skip = not(A > B) }, Ram, 1 };
+				   { Cpu#cpu{ w = [], skip = not(B > A) }, Ram, 1 };
 
 execute_micro_op(ifb, Cpu, Ram) -> [B, A] = Cpu#cpu.w,
-				   { Cpu#cpu{ w = [], skip = (A band B) =:= 0 }, Ram, 1 };
+				   { Cpu#cpu{ w = [], skip = (B band A) =:= 0 }, Ram, 1 };
 
 %% extended operations
 execute_micro_op(jsr, Cpu, Ram) -> NewSP = (Cpu#cpu.sp - 1) band 16#ffff,
