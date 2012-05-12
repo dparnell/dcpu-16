@@ -102,47 +102,25 @@ test_subroutines() ->
 test_stack_operations() ->
     CPU = dcpu16_core:init(),
     
-    ReadyCPU = dcpu16_core:ram(CPU, 0, [
-					16#7c01,  %% SET A, 9876
-					16#2694,
-					16#8011,  %% SET B, 0
-					16#01a1,  %% SET PUSH, A
-					16#7d9d,  %% IFN PEEK, 9876
-					16#2694,
-					16#85c3,  %% SUB PC, 1 ; test failed
-					16#6011,  %% SET B, POP
-					16#7c1d,  %% IFN B, 9876
-					16#2694,  
-					16#85c3,  %% SUB PC, 1 ; test failed
+    ReadyCPU = dcpu16_core:ram(CPU, 0, dcpu16_asm:assemble([
+							    { set, a, 9876 },
+							    { set, b, 0 },
+							    { set, push, a},
+							    { ifn, peek, 9876 },
+							    { sub, pc, 1 }, %% test failed
+							    { set, b, pop },
+							    { ifn, b, 9876 },
+							    { sub, pc, 1 }, %% test failed
+							    { set, a, peek }, %% save off the top of the stack
+							    { set, peek, 1234 }, 
+							    { ifn, 1234, pop },
+							    { sub, pc, 1 }, %% test failed
+							    { set, push, a },  %% restore the top of the stack
+							    { sub, pc, 1 } %% test successful
+							   ])
+			      ),
 
-					16#7da1,  %% SET PUSH, 55
-					16#0037,
-					16#7da1,  %% SET PUSH, 90 
-					16#005a, 
-					16#6182,  %% ADD POP, POP
-					16#6a11,  %% SET 1, PUSH
-					16#6a11,  %% SET 1, PUSH
-					16#6001,  %% SET A, POP
-					16#6011,  %% SET B, POP
-					16#7c0d,  %% IFN A, 145
-					16#0091,  
-					16#85c3,  %% SUB PC, 1 ; test failed
-					16#7c1d,  %% IFN B, 55
-					16#0037, 
-					16#85c3,  %% SUB PC, 1 ; test failed
-
-					16#6401,  %% SET A, PEEK    ; save off the top of the stack
-					16#7d91,  %% SET PEEK, 1234 ; set the top ofthe stack
-					16#04d2, 
-					16#7d8d,  %% IFN POP, 1234
-					16#04d2, 
-					16#85c3,  %% SUB PC, 1 ; test failed
-					16#01a1,  %% SET PUSH, A    ; restore the top of thestack
-
-					16#85c3   %% SUB PC, 1 ; test passed
-				       ]),
-
-    ResultCPU = dcpu16_core:cycle(ReadyCPU, 41),
+    ResultCPU = dcpu16_core:cycle(ReadyCPU, 23),
     
     dcpu16_core:get_reg(ResultCPU, pc).
 
@@ -395,7 +373,7 @@ basic_test_() ->
      ?_assertEqual(16#1234, attempt(fun() -> indirect_register_write() end)),
      ?_assertEqual(16#0010, attempt(fun() -> complicated_subtraction() end)),
      ?_assertMatch({16#0001, 16#0004}, attempt(fun() -> test_subroutines() end)),
-     ?_assertEqual(16#0021, attempt(fun() -> test_stack_operations() end)),
+     ?_assertEqual(16#0012, attempt(fun() -> test_stack_operations() end)),
      ?_assertEqual(16#0013, attempt(fun() -> subtractions_and_overflow() end)),
      ?_assertEqual(16#0015, attempt(fun() -> compare_instructions() end)),
      ?_assertMatch({16#435c, 16#8970}, attempt(fun() -> simple_multiply() end)),

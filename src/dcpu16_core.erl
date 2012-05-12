@@ -9,10 +9,14 @@
 
 -module(dcpu16_core).
 
--export([init/0, ram/2, ram/3, get_reg/2, set_reg/3, cycle/1, cycle/2, print/1]).
+-export([init/0, ram/2, ram/3, get_reg/2, set_reg/3, cycle/1, cycle/2, print/1, list_to_hex/1]).
 
 %% everything about the CPU is in the cpu record
 -record(cpu, { a = 0, b = 0, c = 0, x = 0, y = 0, z = 0, i = 0, j = 0, pc = 0, sp = 0, ex = 0, ia = 0, skip = false, w = [], target = none, pointer = none }).
+
+list_to_hex(List) ->
+    io:format("~s", [[io_lib:format("~4.16.0B ",[X]) || X <- List ]]).
+
 
 %% Set up a new DCPU-16 instance with everything we need
 init() ->
@@ -227,15 +231,17 @@ decode_instruction(16#17, A, B) -> [decode_read(A), decode_read(B), nop, ifu].
 
 operand_size(Source) ->
     case Source of
-	16 -> 1;
-	17 -> 1;
-	18 -> 1;
-	19 -> 1;
-	20 -> 1;
-	21 -> 1;
-	22 -> 1;
-	23 -> 1;
-	30 -> 1;
+	16#10 -> 1;
+	16#11 -> 1;
+	16#12 -> 1;
+	16#13 -> 1;
+	16#14 -> 1;
+	16#15 -> 1;
+	16#16 -> 1;
+	16#17 -> 1;
+	16#1a -> 1;
+	16#1e -> 1;
+	16#1f -> 1;
   	 _ -> 0
     end.
 
@@ -244,7 +250,7 @@ instruction_length(_, A, B) -> 1 + operand_size(A) + operand_size(B).
 
 %% When there are no micro operations to perform we need to fetch a new instruction and decode it into micro-operations
 cycle(Cpu, Ram, Cycles, [], CyclesLeft) ->
-%    debug("Cpu = ~p~nRam = ~p~n", [Cpu, Ram]),
+    debug("Cpu = ~p~nRam = ~p~n", [Cpu, Ram]),
 
     Instruction = array:get(Cpu#cpu.pc, Ram),
     <<A:6, B:5, Opcode:5>> = <<Instruction:16>>,

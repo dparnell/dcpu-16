@@ -6,5 +6,6 @@
 
 all_test_() ->
   [
-   {module, dcpu16_core_test}
+   {module, dcpu16_core_test},
+   {module, dcpu16_asm_test}
   ].
