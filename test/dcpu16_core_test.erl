@@ -127,28 +127,23 @@ test_stack_operations() ->
 subtractions_and_overflow() ->    
     CPU = dcpu16_core:init(),
     
-    ReadyCPU = dcpu16_core:ram(CPU, 0, [
-					16#8613,  %% SUB 0x01, 0x01  ; should do nothing except set the O flag to 0
-					16#81dd,  %% IFN O, 0
-					16#85c3,  %% SUB PC, 1 ; test failed
-					16#81ec,  %% IFE [0x01], 0
-					16#0001,  
-					16#85c3,  %% SUB PC, 1 ; test failed
-					16#8a13,  %% SUB 0x01, 0x02  ; should also do nothing but set the O flag to 0xffff
-					16#7ddd,  %% IFN O, 0xffff
-					16#ffff, 
-					16#85c3,  %% SUB PC, 1 ; test failed
-					16#7dec,  %% IFE [0x01], 0xffff
-					16#0001, 
-					16#ffff, 
-					16#85c3,  %% SUB PC, 1 ; test failed
-					16#7dc1,  %% SET PC, test_sub2       ; jump over the next instruction
-					16#0012,
-					16#7dc1,  %% SET PC, test_sub3       ; jump to the return instruction
-					16#0013,
-					16#8dc3,  %% :test_sub2 SUB PC, 3               ; branch back to the jump to the return
-					16#85c3   %% :test_sub3 SUB PC, 1 ; test passed
-				       ]),
+    ReadyCPU = dcpu16_core:ram(CPU, 0, dcpu16_asm:assemble([
+							    { sub, 1, 1 }, % should do nothing except set the O flag to 0
+							    { ifn, ex, 0 },
+							    { sub, pc, 1}, % test failed
+							    { ife, [1], 0},
+							    { sub, pc, 1}, % test failed
+							    { sub, 1, 2 }, % should also do nothing but set the O flag to 0xffff
+							    { ifn, ex, 16#ffff },
+							    { sub, pc, 1 }, % test failed
+							    { ife, [1], 16#ffff },
+							    { sub, pc, 1 }, % test failed
+							    { add, pc, 2 }, % branch over the next two instructions
+							    { add, pc, 1 }, % branch over the next instruction
+							    { sub, pc, 3 }, % jump back a little
+							    { sub, pc, 1 }  % test successful
+							   ])
+			      ),
 
     ResultCPU = dcpu16_core:cycle(ReadyCPU, 26),
 
@@ -157,30 +152,31 @@ subtractions_and_overflow() ->
 compare_instructions() ->    
     CPU = dcpu16_core:init(),
     
-    ReadyCPU = dcpu16_core:ram(CPU, 0, [
-					16#8401, %% SET A, 1
-					16#840d, %% IFN A, 1
-					16#85c3, %% SUB PC, 1 ; test failed
-					16#840c, %% IFE A, 1
-					16#85c2, %% ADD PC, 1 ; skip the next instruction
-					16#85c3, %% SUB PC, 1 ; test failed
-					16#8411, %% SET B, 1
-					16#040e, %% IFG A, B
-					16#85c3, %% SUB PC, 1 ; test failed
-					16#a801, %% SET A, 10
-					16#040e, %% IFG A, B
-					16#85c2, %% ADD PC, 1 ; skip the next instruction
-					16#85c3, %% SUB PC, 1 ; test failed
-					16#8401, %% SET A, 1
-					16#8811, %% SET B, 2
-					16#040f, %% IFB B, A
-					16#85c3, %% SUB PC, 1 ; test failed
-					16#8c11, %% SET B, 3
-					16#040f, %% IFB A, B
-					16#85c2, %% ADD PC, 1 ; skip the next instruction
-					16#85c3, %% SUB PC, 1 ; test failed
-					16#85c3  %% SUB PC, 1 ; test successful :)
-				       ]),
+    ReadyCPU = dcpu16_core:ram(CPU, 0, dcpu16_asm:assemble([
+							    { set, a, 1 },
+							    { ifn, a, 1 },
+							    { sub, pc, 1 }, % test failed
+							    { ife, a, 1 },
+							    { add, pc, 1 }, % skip the next instruction
+							    { sub, pc, 1 }, % test failed
+							    { set, b, 1 },
+							    { ifg, a, b },
+							    { sub, pc, 1 }, % test failed
+							    { set, a, 10 },
+							    { ifg, a, b },
+							    { add, pc, 1 }, % skip the next instruction
+							    { sub, pc, 1 }, % test failed
+							    { set, a, 1 },
+							    { set, b, 2 },
+							    { ifb, b, a },
+							    { sub, pc, 1 }, % test failed
+							    { set, b, 3 },
+							    { ifb, a, b },
+							    { add, pc, 1 }, % skip the next instruction
+							    { sub, pc, 1 }, % test failed
+							    { sub, pc, 1 }  % test successful :)
+							   ])
+			      ),
 
     ResultCPU = dcpu16_core:cycle(ReadyCPU, 27),
 
@@ -189,16 +185,15 @@ compare_instructions() ->
 simple_multiply() ->
     CPU = dcpu16_core:init(),
     
-    ReadyCPU = dcpu16_core:ram(CPU, 0, [
-					16#9401, %% SET A, 5
-					16#9804, %% MUL A, 6
-					16#f80d, %% IFN A, 30
-					16#85c3, %% SUB PC, 1 ; failed
-					16#7c01, %% SET A, 0xABCD
-					16#abcd,
-					16#7c04, %% MUL A, 0xCCCC
-					16#cccc
-				       ]),
+    ReadyCPU = dcpu16_core:ram(CPU, 0, dcpu16_asm:assemble([
+							    { set, a, 5 },
+							    { mul, a, 6 },
+							    { ifn, a, 30 },
+							    { sub, pc, 1 }, % test failed
+							    { set, a, 16#abcd },
+							    { mul, a, 16#cccc }
+							   ])
+			      ),
 
     ResultCPU = dcpu16_core:cycle(ReadyCPU, 11),
     

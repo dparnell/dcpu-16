@@ -123,8 +123,32 @@ process_instruction({ add, B, A }, Symbols) ->
 process_instruction({ sub, B, A }, Symbols) ->
     {[encode_instruction(16#03, A, B), encode_next(A), encode_next(B)], Symbols};
 
+process_instruction({ mul, B, A }, Symbols) ->
+    {[encode_instruction(16#04, A, B), encode_next(A), encode_next(B)], Symbols};
+
+process_instruction({ ifb, B, A }, Symbols) ->
+    {[encode_instruction(16#10, A, B), encode_next(A), encode_next(B)], Symbols};
+
+process_instruction({ ifc, B, A }, Symbols) ->
+    {[encode_instruction(16#11, A, B), encode_next(A), encode_next(B)], Symbols};
+
+process_instruction({ ife, B, A }, Symbols) ->
+    {[encode_instruction(16#12, A, B), encode_next(A), encode_next(B)], Symbols};
+
 process_instruction({ ifn, B, A }, Symbols) ->
     {[encode_instruction(16#13, A, B), encode_next(A), encode_next(B)], Symbols};
+
+process_instruction({ ifg, B, A }, Symbols) ->
+    {[encode_instruction(16#14, A, B), encode_next(A), encode_next(B)], Symbols};
+
+process_instruction({ ifa, B, A }, Symbols) ->
+    {[encode_instruction(16#15, A, B), encode_next(A), encode_next(B)], Symbols};
+
+process_instruction({ ifl, B, A }, Symbols) ->
+    {[encode_instruction(16#16, A, B), encode_next(A), encode_next(B)], Symbols};
+
+process_instruction({ ifu, B, A }, Symbols) ->
+    {[encode_instruction(16#17, A, B), encode_next(A), encode_next(B)], Symbols};
 
 process_instruction(_, _) -> error.
 
