@@ -126,6 +126,15 @@ process_instruction({ sub, B, A }, Symbols) ->
 process_instruction({ mul, B, A }, Symbols) ->
     {[encode_instruction(16#04, A, B), encode_next(A), encode_next(B)], Symbols};
 
+process_instruction({ mli, B, A }, Symbols) ->
+    {[encode_instruction(16#05, A, B), encode_next(A), encode_next(B)], Symbols};
+
+process_instruction({ divide, B, A }, Symbols) ->
+    {[encode_instruction(16#06, A, B), encode_next(A), encode_next(B)], Symbols};
+
+process_instruction({ dvi, B, A }, Symbols) ->
+    {[encode_instruction(16#07, A, B), encode_next(A), encode_next(B)], Symbols};
+
 process_instruction({ ifb, B, A }, Symbols) ->
     {[encode_instruction(16#10, A, B), encode_next(A), encode_next(B)], Symbols};
 

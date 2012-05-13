@@ -339,15 +339,15 @@ execute_micro_op(mul, Cpu, Ram) -> [B, A] = Cpu#cpu.w,
 				   { Cpu#cpu{ w = [Mul band 16#ffff], ex = Overflow  }, Ram, 1 };
 
 execute_micro_op(divide, Cpu, Ram) -> [B, A] = Cpu#cpu.w,
-				      case B of
+				      case A of
 					  0 -> { Cpu#cpu{ w = [0], ex = 0  }, Ram, 1 };
 					  _ -> Div = B div A,
-					       Overflow = ((A bsl 16) div B) band 16#ffff,
+					       Overflow = ((B bsl 16) div A) band 16#ffff,
 					       { Cpu#cpu{ w = [Div band 16#ffff], ex = Overflow  }, Ram, 1 }
 				      end;
 
 execute_micro_op(mod, Cpu, Ram) -> [B, A] = Cpu#cpu.w,
-				   case B of
+				   case A of
 				       0 -> { Cpu#cpu{ w = [0] }, Ram, 1 };
 				       _ -> Mod = B rem A,
 						   { Cpu#cpu{ w = [Mod band 16#ffff] }, Ram, 1 }

@@ -205,33 +205,28 @@ simple_multiply() ->
 simple_divide() ->
     CPU = dcpu16_core:init(),
     
-    ReadyCPU = dcpu16_core:ram(CPU, 0, [
-					16#7c01, %% SET A, 100
-					16#0064,
-					16#8005, %% DIV A, 0
-					16#800d, %% IFN A, 0
-					16#85c3, %% SUB PC, 1 ; test failed
-					16#81dd, %% IFN O, 0
-					16#85c3, %% SUB PC, 1 ; test failed
-					16#7c01, %% SET A, 100
-					16#0064,
-					16#8805, %% DIV A, 2
-					16#7c0d, %% IFN A, 50
-					16#0032,
-					16#85c3, %% SUB PC, 1 ; test failed
-					16#81dd, %% IFN O, 0
-					16#85c3, %% SUB PC, 1 ; test failed
-					16#7c01, %% SET A, 0x99
-					16#0099, 
-					16#7c05, %% DIV A, 0x00cc
-					16#00cc,
-					16#800d, %% IFN A, 0
-					16#85c3, %% SUB PC, 1 ; test failed
-					16#7ddd, %% IFN O, 0xc000
-					16#c000, 
-					16#85c3, %% SUB PC, 1 ; test failed
-					16#85c3  %% SUB PC, 1 ; test passed
-				       ]),
+    ReadyCPU = dcpu16_core:ram(CPU, 0, dcpu16_asm:assemble([
+							    { set, a, 100 },
+							    { divide, a, 0 },
+							    { ifn, a, 0 },
+							    { sub, pc, 1 }, % test failed
+							    { ifn, ex, 0 },
+							    { sub, pc, 1 }, % test failed
+							    { set, a, 100 },
+							    { divide, a, 2 },
+							    { ifn, a, 50 },
+							    { sub, pc, 1 }, % test failed
+							    { ifn, ex, 0 },
+							    { sub, pc, 1 }, % test failed
+							    { set, a, 16#99 },
+							    { divide, a, 16#cc },
+							    { ifn, a, 0 },
+							    { sub, pc, 1 }, % test failed
+							    { ifn, ex, 16#c000 },
+							    { sub, pc, 1 }, % test failed
+							    { sub, pc, 1 }  % success
+							   ])
+			      ),
 
     ResultCPU = dcpu16_core:cycle(ReadyCPU, 38),
     
