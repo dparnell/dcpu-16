@@ -300,16 +300,14 @@ simple_shr() ->
 simple_and() ->
     CPU = dcpu16_core:init(),
     
-    ReadyCPU = dcpu16_core:ram(CPU, 0, [
-					16#7c01, %% SET A, 0x1234
-					16#1234, 
-					16#7c09, %% AND A, 0x5432
-					16#5432,
-					16#7c0d, %% IFN A, 0x1030
-					16#1030,
-					16#85c3, %% SUB PC, 1 ; test failed
-					16#85c3  %% SUB PC, 1 ; test passed
-				       ]),
+    ReadyCPU = dcpu16_core:ram(CPU, 0, dcpu16_asm:assemble([
+							    { set, a, 16#1234 },
+							    { logical_and, a, 16#5432 },
+							    { ifn, a, 16#1030 },
+							    { sub, pc, 1 }, % test failed
+							    { sub, pc, 1 }  % success
+							   ])
+			      ),
 
     ResultCPU = dcpu16_core:cycle(ReadyCPU, 10),
     
