@@ -317,16 +317,14 @@ simple_and() ->
 simple_bor() ->
     CPU = dcpu16_core:init(),
     
-    ReadyCPU = dcpu16_core:ram(CPU, 0, [
-					16#7c01, %% SET A, 0x1200
-					16#1200,
-					16#7c0a, %% BOR A, 0x0034
-					16#0034,
-					16#7c0d, %% IFN A, 0x1234
-					16#1234,
-					16#85c3, %% SUB PC, 1 ; test failed
-					16#85c3  %% SUB PC, 1 ; test passed
-				       ]),
+    ReadyCPU = dcpu16_core:ram(CPU, 0, dcpu16_asm:assemble([
+							    { set, a, 16#1200 },
+							    { logical_or, a, 16#0034 },
+							    { ifn, a, 16#1234 },
+							    { sub, pc, 1 }, % test failed
+							    { sub, pc, 1 }  % success
+							   ])
+			      ),
 
     ResultCPU = dcpu16_core:cycle(ReadyCPU, 10),
     
