@@ -138,6 +138,27 @@ process_instruction({ dvi, B, A }, Symbols) ->
 process_instruction({ mod, B, A }, Symbols) ->
     {[encode_instruction(16#08, A, B), encode_next(A), encode_next(B)], Symbols};
 
+process_instruction({ mdi, B, A }, Symbols) ->
+    {[encode_instruction(16#09, A, B), encode_next(A), encode_next(B)], Symbols};
+
+process_instruction({ logical_and, B, A }, Symbols) ->
+    {[encode_instruction(16#0a, A, B), encode_next(A), encode_next(B)], Symbols};
+
+process_instruction({ logical_or, B, A }, Symbols) ->
+    {[encode_instruction(16#0b, A, B), encode_next(A), encode_next(B)], Symbols};
+
+process_instruction({ logical_xor, B, A }, Symbols) ->
+    {[encode_instruction(16#0c, A, B), encode_next(A), encode_next(B)], Symbols};
+
+process_instruction({ shr, B, A }, Symbols) ->
+    {[encode_instruction(16#0d, A, B), encode_next(A), encode_next(B)], Symbols};
+
+process_instruction({ asr, B, A }, Symbols) ->
+    {[encode_instruction(16#0e, A, B), encode_next(A), encode_next(B)], Symbols};
+
+process_instruction({ shl, B, A }, Symbols) ->
+    {[encode_instruction(16#0f, A, B), encode_next(A), encode_next(B)], Symbols};
+
 process_instruction({ ifb, B, A }, Symbols) ->
     {[encode_instruction(16#10, A, B), encode_next(A), encode_next(B)], Symbols};
 

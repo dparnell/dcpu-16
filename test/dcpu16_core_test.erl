@@ -257,21 +257,19 @@ simple_mod() ->
 simple_shl() ->
     CPU = dcpu16_core:init(),
     
-    ReadyCPU = dcpu16_core:ram(CPU, 0, [
-					16#7c01, %% SET A, 0x1234
-					16#1234,
-					16#8407, %% SHL A, 1
-					16#7c0d, %% IFN A, 0x2468
-					16#2468,
-					16#85c3, %% SUB PC, 1 ; test failed
-					16#c007, %% SHL A, 16
-					16#800d, %% IFN A, 0
-					16#85c3, %% SUB PC, 1 ; test failed
-					16#7ddd, %% IFN O, 0x2468
-					16#2468,
-					16#85c3, %% SUB PC, 1 ; test failed
-					16#85c3  %% SUB PC, 1 ; test passed
-				       ]),
+    ReadyCPU = dcpu16_core:ram(CPU, 0, dcpu16_asm:assemble([
+							    { set, a, 16#1234 },
+							    { shl, a, 1 },
+							    { ifn, a, 16#2468 },
+							    { sub, pc, 1 }, % test failed
+							    { shl, a, 16 },
+							    { ifn, a, 0 },
+							    { sub, pc, 1 }, % test failed
+							    { ifn, ex, 16#2468 },
+							    { sub, pc, 1 }, % test failed
+							    { sub, pc, 1 }  % success
+							   ])
+			      ),
 
     ResultCPU = dcpu16_core:cycle(ReadyCPU, 19),
     
