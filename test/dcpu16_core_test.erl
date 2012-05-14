@@ -236,18 +236,19 @@ simple_divide() ->
 simple_mod() ->
     CPU = dcpu16_core:init(),
     
-    ReadyCPU = dcpu16_core:ram(CPU, 0, [
-					16#a801, %% SET A, 10
-					16#8011, %% SET B, 0
-					16#0406, %% MOD A, B
-					16#800d, %% IFN A, 0
-					16#85c3, %% SUB PC, 1 ; test failed
-					16#a801, %% SET A, 10
-					16#9c06, %% MOD A, 7
-					16#8c0d, %% IFN A, 3
-					16#85c3, %% SUB PC, 1 ; test failed
-					16#85c3  %% SUB PC, 1 ; test passed
-				       ]),
+    ReadyCPU = dcpu16_core:ram(CPU, 0, dcpu16_asm:assemble([
+							    { set, a, 10 },
+							    { set, b, 0 },
+							    { mod, a, b },
+							    { ifn, a, 0 },
+							    { sub, pc, 1 }, % test failed
+							    { set, a, 10 },
+							    { mod, a, 7 },
+							    { ifn, a, 3 },
+							    { sub, pc, 1 }, % test failed
+							    { sub, pc, 1 }  % success
+							   ])
+			      ),
 
     ResultCPU = dcpu16_core:cycle(ReadyCPU, 17),
     
