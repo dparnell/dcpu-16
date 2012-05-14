@@ -131,7 +131,7 @@ subtractions_and_overflow() ->
 							    { sub, 1, 1 }, % should do nothing except set the O flag to 0
 							    { ifn, ex, 0 },
 							    { sub, pc, 1}, % test failed
-							    { ife, [1], 0},
+							    { ifn, [1], 0},
 							    { sub, pc, 1}, % test failed
 							    { sub, 1, 2 }, % should also do nothing but set the O flag to 0xffff
 							    { ifn, ex, 16#ffff },
@@ -333,16 +333,14 @@ simple_bor() ->
 simple_xor() ->
     CPU = dcpu16_core:init(),
     
-    ReadyCPU = dcpu16_core:ram(CPU, 0, [
-					16#7c01, %% SET A, 0xFEED
-					16#feed,
-					16#7c0b, %% XOR A, 0xBEEF
-					16#beef,
-					16#7c0d, %% IFN A, 0x4002
-					16#4002,
-					16#85c3, %% SUB PC, 1 ; test failed
-					16#85c3  %% SUB PC, 1 ; test passed
-				       ]),
+    ReadyCPU = dcpu16_core:ram(CPU, 0, dcpu16_asm:assemble([
+							    { set, a, 16#feed },
+							    { logical_xor, a, 16#beef },
+							    { ifn, a, 16#4002 },
+							    { sub, pc, 1 }, % test failed
+							    { sub, pc, 1 }  % success
+							   ])
+			      ),
 
     ResultCPU = dcpu16_core:cycle(ReadyCPU, 10),
     

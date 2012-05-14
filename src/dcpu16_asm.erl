@@ -99,89 +99,91 @@ encode_instruction(Opcode, A) ->
     <<Instruction:16>> = << Read:6, Opcode:5, 0:5>>,
     Instruction.
 
-encode_next([A]) when is_integer(A) ->
+encode_next(_, [A]) when is_integer(A) ->
     A;
-encode_next(A) when is_integer(A) ->
+encode_next(a, A) when is_integer(A) ->
     if A < -1 -> A;
        A > 30 -> A; 
        true -> nothing
     end;
-encode_next([_, A]) when is_integer(A) ->
+encode_next(b, A) when is_integer(A) ->
     A;
-encode_next(_) ->
+encode_next(_, [_, A]) when is_integer(A) ->
+    A;
+encode_next(_, _) ->
     nothing.
 
 process_instruction({ jsr, A }, Symbols) ->
-    {[encode_instruction(16#01, A), encode_next(A)], Symbols};
+    {[encode_instruction(16#01, A), encode_next(a, A)], Symbols};
     
 process_instruction({ set, B, A }, Symbols) ->
-    {[encode_instruction(16#01, A, B), encode_next(A), encode_next(B)], Symbols};
+    {[encode_instruction(16#01, A, B), encode_next(a, A), encode_next(b, B)], Symbols};
 
 process_instruction({ add, B, A }, Symbols) ->
-    {[encode_instruction(16#02, A, B), encode_next(A), encode_next(B)], Symbols};
+    {[encode_instruction(16#02, A, B), encode_next(a, A), encode_next(b, B)], Symbols};
 
 process_instruction({ sub, B, A }, Symbols) ->
-    {[encode_instruction(16#03, A, B), encode_next(A), encode_next(B)], Symbols};
+    {[encode_instruction(16#03, A, B), encode_next(a, A), encode_next(b, B)], Symbols};
 
 process_instruction({ mul, B, A }, Symbols) ->
-    {[encode_instruction(16#04, A, B), encode_next(A), encode_next(B)], Symbols};
+    {[encode_instruction(16#04, A, B), encode_next(a, A), encode_next(b, B)], Symbols};
 
 process_instruction({ mli, B, A }, Symbols) ->
-    {[encode_instruction(16#05, A, B), encode_next(A), encode_next(B)], Symbols};
+    {[encode_instruction(16#05, A, B), encode_next(a, A), encode_next(b, B)], Symbols};
 
 process_instruction({ divide, B, A }, Symbols) ->
-    {[encode_instruction(16#06, A, B), encode_next(A), encode_next(B)], Symbols};
+    {[encode_instruction(16#06, A, B), encode_next(a, A), encode_next(b, B)], Symbols};
 
 process_instruction({ dvi, B, A }, Symbols) ->
-    {[encode_instruction(16#07, A, B), encode_next(A), encode_next(B)], Symbols};
+    {[encode_instruction(16#07, A, B), encode_next(a, A), encode_next(b, B)], Symbols};
 
 process_instruction({ mod, B, A }, Symbols) ->
-    {[encode_instruction(16#08, A, B), encode_next(A), encode_next(B)], Symbols};
+    {[encode_instruction(16#08, A, B), encode_next(a, A), encode_next(b, B)], Symbols};
 
 process_instruction({ mdi, B, A }, Symbols) ->
-    {[encode_instruction(16#09, A, B), encode_next(A), encode_next(B)], Symbols};
+    {[encode_instruction(16#09, A, B), encode_next(a, A), encode_next(b, B)], Symbols};
 
 process_instruction({ logical_and, B, A }, Symbols) ->
-    {[encode_instruction(16#0a, A, B), encode_next(A), encode_next(B)], Symbols};
+    {[encode_instruction(16#0a, A, B), encode_next(a, A), encode_next(b, B)], Symbols};
 
 process_instruction({ logical_or, B, A }, Symbols) ->
-    {[encode_instruction(16#0b, A, B), encode_next(A), encode_next(B)], Symbols};
+    {[encode_instruction(16#0b, A, B), encode_next(a, A), encode_next(b, B)], Symbols};
 
 process_instruction({ logical_xor, B, A }, Symbols) ->
-    {[encode_instruction(16#0c, A, B), encode_next(A), encode_next(B)], Symbols};
+    {[encode_instruction(16#0c, A, B), encode_next(a, A), encode_next(b, B)], Symbols};
 
 process_instruction({ shr, B, A }, Symbols) ->
-    {[encode_instruction(16#0d, A, B), encode_next(A), encode_next(B)], Symbols};
+    {[encode_instruction(16#0d, A, B), encode_next(a, A), encode_next(b, B)], Symbols};
 
 process_instruction({ asr, B, A }, Symbols) ->
-    {[encode_instruction(16#0e, A, B), encode_next(A), encode_next(B)], Symbols};
+    {[encode_instruction(16#0e, A, B), encode_next(a, A), encode_next(b, B)], Symbols};
 
 process_instruction({ shl, B, A }, Symbols) ->
-    {[encode_instruction(16#0f, A, B), encode_next(A), encode_next(B)], Symbols};
+    {[encode_instruction(16#0f, A, B), encode_next(a, A), encode_next(b, B)], Symbols};
 
 process_instruction({ ifb, B, A }, Symbols) ->
-    {[encode_instruction(16#10, A, B), encode_next(A), encode_next(B)], Symbols};
+    {[encode_instruction(16#10, A, B), encode_next(a, A), encode_next(b, B)], Symbols};
 
 process_instruction({ ifc, B, A }, Symbols) ->
-    {[encode_instruction(16#11, A, B), encode_next(A), encode_next(B)], Symbols};
+    {[encode_instruction(16#11, A, B), encode_next(a, A), encode_next(b, B)], Symbols};
 
 process_instruction({ ife, B, A }, Symbols) ->
-    {[encode_instruction(16#12, A, B), encode_next(A), encode_next(B)], Symbols};
+    {[encode_instruction(16#12, A, B), encode_next(a, A), encode_next(b, B)], Symbols};
 
 process_instruction({ ifn, B, A }, Symbols) ->
-    {[encode_instruction(16#13, A, B), encode_next(A), encode_next(B)], Symbols};
+    {[encode_instruction(16#13, A, B), encode_next(a, A), encode_next(b, B)], Symbols};
 
 process_instruction({ ifg, B, A }, Symbols) ->
-    {[encode_instruction(16#14, A, B), encode_next(A), encode_next(B)], Symbols};
+    {[encode_instruction(16#14, A, B), encode_next(a, A), encode_next(b, B)], Symbols};
 
 process_instruction({ ifa, B, A }, Symbols) ->
-    {[encode_instruction(16#15, A, B), encode_next(A), encode_next(B)], Symbols};
+    {[encode_instruction(16#15, A, B), encode_next(a, A), encode_next(b, B)], Symbols};
 
 process_instruction({ ifl, B, A }, Symbols) ->
-    {[encode_instruction(16#16, A, B), encode_next(A), encode_next(B)], Symbols};
+    {[encode_instruction(16#16, A, B), encode_next(a, A), encode_next(b, B)], Symbols};
 
 process_instruction({ ifu, B, A }, Symbols) ->
-    {[encode_instruction(16#17, A, B), encode_next(A), encode_next(B)], Symbols};
+    {[encode_instruction(16#17, A, B), encode_next(a, A), encode_next(b, B)], Symbols};
 
 process_instruction(_, _) -> error.
 

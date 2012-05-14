@@ -13,9 +13,22 @@ assemble_ifn() ->
 				{ set, push, a},
 				{ ifn, peek, 9876 }
 			       ]),
+
     io:fwrite("~p~n", [dcpu16_core:list_to_hex(Code)]),
 
     Code.
+
+assemble_sub() ->
+    Code = dcpu16_asm:assemble([
+				{ sub, 1, 1 },
+				{ ifn, ex, 0 },
+				{ sub, pc, 1}
+			       ]),
+
+    io:fwrite("~p~n", [dcpu16_core:list_to_hex(Code)]),
+
+    Code.
+    
 
 basic_test_() ->   
     [
@@ -26,6 +39,12 @@ basic_test_() ->
 		    16#0301,  %% SET PUSH, A
 		    16#7f33,  %% IFN PEEK, 9876
 		    16#2694
-		   ], attempt(fun() -> assemble_ifn() end))
+		   ], attempt(fun() -> assemble_ifn() end)),
+     ?_assertMatch([
+		    16#8be3, %% SUB 1, 1
+		    16#0001,
+		    16#87b3, %% IFN EX, 0
+		    16#8b83  %% SUB PC, 1
+		   ], attempt(fun() -> assemble_sub() end))
      
     ].
