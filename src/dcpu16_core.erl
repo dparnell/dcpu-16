@@ -23,7 +23,7 @@ init() ->
     { #cpu{}, array:new(16#10000, {default, 0}), 0, [] }.
 
 debug(Format, Values) ->
-    io:fwrite(Format, Values).
+   io:fwrite(Format, Values).
 %%   ok.
 
 %% Get the value in a RAM location
@@ -152,7 +152,8 @@ decode_read(16#1f) -> % next word (literal)
       {write_reg, pointer},
       {read_ind, pointer} 
     ]; 
-decode_read(N) -> {lit, (N bxor 2#100000)-1}.
+decode_read(16#20) -> {lit, 16#ffff};
+decode_read(N) -> {lit, (N band 16#1f)-1}.
 
 %% produce the micro operations for a write from the working stack
 
@@ -378,6 +379,11 @@ execute_micro_op(shl, Cpu, Ram) -> [B, A] = Cpu#cpu.w,
 execute_micro_op(shr, Cpu, Ram) -> [B, A] = Cpu#cpu.w,
 				   Value = B bsr A,
 				   Overflow = ((A bsl 16) bsr B) band 16#ffff,
+				   { Cpu#cpu{ w = [Value band 16#ffff], ex = Overflow  }, Ram, 1 };
+
+execute_micro_op(asr, Cpu, Ram) -> [B, A] = Cpu#cpu.w,
+				   Value = signed(B) bsr A,
+				   Overflow = ((signed(B) bsl 16) bsr A) band 16#ffff,
 				   { Cpu#cpu{ w = [Value band 16#ffff], ex = Overflow  }, Ram, 1 };
 
 execute_micro_op(logical_and, Cpu, Ram) -> [B, A] = Cpu#cpu.w,
