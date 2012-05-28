@@ -362,6 +362,22 @@ simple_mli() ->
     
     dcpu16_core:get_reg(ResultCPU, pc).
 
+simple_dvi() ->
+    CPU = dcpu16_core:init(),
+    
+    ReadyCPU = dcpu16_core:ram(CPU, 0, dcpu16_asm:assemble([
+							    { set, a, -10 },
+							    { dvi, a, 2 },
+							    { ifn, a, -5 },
+							    { sub, pc, 1 }, % test failed
+							    { sub, pc, 1 }  % success
+							   ])
+			      ),
+
+    ResultCPU = dcpu16_core:cycle(ReadyCPU, 9),
+    
+    dcpu16_core:get_reg(ResultCPU, pc).
+
 basic_test_() ->    
     [
      ?_assertEqual(16#1234, attempt(fun() -> simple_set() end)),
@@ -381,5 +397,6 @@ basic_test_() ->
      ?_assertEqual(16#0007, attempt(fun() -> simple_and() end)),
      ?_assertEqual(16#0007, attempt(fun() -> simple_bor() end)),
      ?_assertEqual(16#0007, attempt(fun() -> simple_xor() end)),
-     ?_assertEqual(16#0006, attempt(fun() -> simple_mli() end))
+     ?_assertEqual(16#0006, attempt(fun() -> simple_mli() end)),
+     ?_assertEqual(16#0006, attempt(fun() -> simple_dvi() end))
     ].

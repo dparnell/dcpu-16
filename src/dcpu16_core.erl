@@ -24,7 +24,7 @@ init() ->
 
 debug(Format, Values) ->
     io:fwrite(Format, Values).
-%%    ok.
+%%   ok.
 
 %% Get the value in a RAM location
 ram(State, Address) ->
@@ -354,6 +354,14 @@ execute_micro_op(divide, Cpu, Ram) -> [B, A] = Cpu#cpu.w,
 					       Overflow = ((B bsl 16) div A) band 16#ffff,
 					       { Cpu#cpu{ w = [Div band 16#ffff], ex = Overflow  }, Ram, 1 }
 				      end;
+
+execute_micro_op(dvi, Cpu, Ram) -> [B, A] = Cpu#cpu.w,
+				   case A of
+				       0 -> { Cpu#cpu{ w = [0], ex = 0  }, Ram, 1 };
+				       _ -> Div = signed(B) div signed(A),
+					    Overflow = ((signed(B) bsl 16) div signed(A)) band 16#ffff,
+					    { Cpu#cpu{ w = [Div band 16#ffff], ex = Overflow  }, Ram, 1 }
+				   end;
 
 execute_micro_op(mod, Cpu, Ram) -> [B, A] = Cpu#cpu.w,
 				   case A of
