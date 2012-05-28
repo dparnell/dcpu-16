@@ -368,7 +368,14 @@ execute_micro_op(mod, Cpu, Ram) -> [B, A] = Cpu#cpu.w,
 				   case A of
 				       0 -> { Cpu#cpu{ w = [0] }, Ram, 1 };
 				       _ -> Mod = B rem A,
-						   { Cpu#cpu{ w = [Mod band 16#ffff] }, Ram, 1 }
+					    { Cpu#cpu{ w = [Mod band 16#ffff] }, Ram, 1 }
+				   end;
+
+execute_micro_op(mdi, Cpu, Ram) -> [B, A] = Cpu#cpu.w,
+				   case A of
+				       0 -> { Cpu#cpu{ w = [0] }, Ram, 1 };
+				       _ -> Mod = signed(B) rem signed(A),
+					    { Cpu#cpu{ w = [Mod band 16#ffff] }, Ram, 1 }
 				   end;
 
 execute_micro_op(shl, Cpu, Ram) -> [B, A] = Cpu#cpu.w,
