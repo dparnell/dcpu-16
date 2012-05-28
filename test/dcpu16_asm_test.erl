@@ -14,7 +14,7 @@ assemble_ifn() ->
 				{ ifn, peek, 9876 }
 			       ]),
 
-    io:fwrite("~p~n", [dcpu16_core:list_to_hex(Code)]),
+%%    io:fwrite("~p~n", [dcpu16_core:list_to_hex(Code)]),
 
     Code.
 
@@ -23,6 +23,16 @@ assemble_sub() ->
 				{ sub, 1, 1 },
 				{ ifn, ex, 0 },
 				{ sub, pc, 1}
+			       ]),
+
+%%    io:fwrite("~p~n", [dcpu16_core:list_to_hex(Code)]),
+
+    Code.
+
+assemble_negative_numbers() ->
+    Code = dcpu16_asm:assemble([
+				{ set, a, -1 },
+				{ mli, a, -2 }
 			       ]),
 
     io:fwrite("~p~n", [dcpu16_core:list_to_hex(Code)]),
@@ -45,6 +55,11 @@ basic_test_() ->
 		    16#0001,
 		    16#87b3, %% IFN EX, 0
 		    16#8b83  %% SUB PC, 1
-		   ], attempt(fun() -> assemble_sub() end))
+		   ], attempt(fun() -> assemble_sub() end)),
+    ?_assertMatch([
+		    16#8001,  %% SET A, -1
+		    16#7c05,  %% MLI A, -2
+		    16#fffe
+		   ], attempt(fun() -> assemble_negative_numbers() end))
      
     ].

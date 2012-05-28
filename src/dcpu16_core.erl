@@ -24,6 +24,7 @@ init() ->
 
 debug(Format, Values) ->
     io:fwrite(Format, Values).
+%%    ok.
 
 %% Get the value in a RAM location
 ram(State, Address) ->
@@ -57,7 +58,7 @@ reg(Cpu, Reg) ->
 	a -> Cpu#cpu.a;
 	b -> Cpu#cpu.b;
 	c -> Cpu#cpu.c;
-	x -> Cpu#cpu.x;
+x -> Cpu#cpu.x;
 	y -> Cpu#cpu.y;
 	z -> Cpu#cpu.z;
 	i -> Cpu#cpu.i;
@@ -217,9 +218,9 @@ decode_instruction(16#09, A, B) -> [decode_read(A), decode_read(B), set_target, 
 decode_instruction(16#0a, A, B) -> [decode_read(A), decode_read(B), set_target, logical_and, decode_write(B)];
 decode_instruction(16#0b, A, B) -> [decode_read(A), decode_read(B), set_target, logical_or, decode_write(B)];
 decode_instruction(16#0c, A, B) -> [decode_read(A), decode_read(B), set_target, logical_xor, decode_write(B)];
-decode_instruction(16#0d, A, B) -> [decode_read(A), decode_read(B), set_target, nop, shr, decode_write(B)];
-decode_instruction(16#0e, A, B) -> [decode_read(A), decode_read(B), set_target, nop, asr, decode_write(B)];
-decode_instruction(16#0f, A, B) -> [decode_read(A), decode_read(B), set_target, nop, shl, decode_write(B)];
+decode_instruction(16#0d, A, B) -> [decode_read(A), decode_read(B), set_target, shr, decode_write(B)];
+decode_instruction(16#0e, A, B) -> [decode_read(A), decode_read(B), set_target, asr, decode_write(B)];
+decode_instruction(16#0f, A, B) -> [decode_read(A), decode_read(B), set_target, shl, decode_write(B)];
 decode_instruction(16#10, A, B) -> [decode_read(A), decode_read(B), nop, ifb];
 decode_instruction(16#11, A, B) -> [decode_read(A), decode_read(B), nop, ifc];
 decode_instruction(16#12, A, B) -> [decode_read(A), decode_read(B), nop, ife];
@@ -285,6 +286,9 @@ cycle(Cpu, Ram, Cycles, [Micro_op|Micro_ops], CyclesLeft) ->
 	    end
     end.
 
+signed(A) when A > 16#7fff -> -(A bxor 16#ffff) - 1;
+signed(A) -> A.
+
 %% simple micro operations
 execute_micro_op(nop, Cpu, Ram) ->  { Cpu, Ram, 1 };				   
 execute_micro_op(free_nop, Cpu, Ram) -> { Cpu, Ram, 0 };
@@ -335,6 +339,11 @@ execute_micro_op(sub, Cpu, Ram) -> [B, A] = Cpu#cpu.w,
 				   
 execute_micro_op(mul, Cpu, Ram) -> [B, A] = Cpu#cpu.w,
 				   Mul = B * A,
+				   Overflow = (Mul bsr 16) band 16#ffff,
+				   { Cpu#cpu{ w = [Mul band 16#ffff], ex = Overflow  }, Ram, 1 };
+
+execute_micro_op(mli, Cpu, Ram) -> [B, A] = Cpu#cpu.w,
+				   Mul = signed(B) * signed(A),
 				   Overflow = (Mul bsr 16) band 16#ffff,
 				   { Cpu#cpu{ w = [Mul band 16#ffff], ex = Overflow  }, Ram, 1 };
 

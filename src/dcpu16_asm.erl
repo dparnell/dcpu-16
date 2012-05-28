@@ -102,7 +102,7 @@ encode_instruction(Opcode, A) ->
 encode_next(_, [A]) when is_integer(A) ->
     A;
 encode_next(a, A) when is_integer(A) ->
-    if A < -1 -> A;
+    if A < -1 -> 16#10000+A;
        A > 30 -> A; 
        true -> nothing
     end;
